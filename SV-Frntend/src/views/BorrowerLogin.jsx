@@ -16,7 +16,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { sendOtp, verifyOtp } from '../api/shevestApi'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,11 +27,50 @@ import {
     RefreshCw,
     Lock,
     CheckCircle2,
+    CreditCard,
+    Fingerprint,
+    AtSign,
+    UserPlus,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const RESEND_COOLDOWN_SECONDS = 30
+
+// ─── Login / Register toggle ─────────────────────────────────────────────────
+function MethodToggle({ mode, onChange }) {
+    const tabs = [
+        { id: 'login',    label: 'Login'    },
+        { id: 'register', label: 'Register' },
+    ]
+    return (
+        <div className="flex bg-stone-100/80 rounded-2xl p-1 gap-1" role="tablist">
+            {tabs.map(({ id, label }) => {
+                const active = mode === id
+                return (
+                    <button
+                        key={id}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => onChange(id)}
+                        className="relative flex-1 py-2.5 text-xs font-semibold font-sans rounded-xl transition-all duration-200"
+                    >
+                        {active && (
+                            <motion.div
+                                layoutId="borrower-tab-bg"
+                                className="absolute inset-0 bg-emerald-500 rounded-xl shadow-md"
+                                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                            />
+                        )}
+                        <span className={`relative z-10 transition-colors ${active ? 'text-white' : 'text-stone-500 hover:text-stone-700'}`}>
+                            {label}
+                        </span>
+                    </button>
+                )
+            })}
+        </div>
+    )
+}
 
 // ─── Ambient background blobs ─────────────────────────────────────────────────
 function AmbientBlobs() {
@@ -353,28 +392,228 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
     )
 }
 
+// ─── Aadhaar input — formatted XXXX XXXX XXXX ────────────────────────────────
+function AadhaarInput({ value, onChange }) {
+    // value = raw 12 digits; display as "XXXX XXXX XXXX"
+    const handleChange = useCallback((e) => {
+        const raw = e.target.value.replace(/\D/g, '').slice(0, 12)
+        onChange(raw)
+    }, [onChange])
+
+    const display = value
+        .padEnd(12, '')
+        .replace(/(.{4})(.{4})(.{4})/, '$1 $2 $3')
+        .trimEnd()
+
+    const isValid = value.length === 12
+
+    return (
+        <div>
+            <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
+                Aadhaar Number
+            </label>
+            <div className={[
+                'flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden transition-colors duration-150',
+                isValid ? 'border-emerald-400' : 'border-stone-200 focus-within:border-emerald-400',
+            ].join(' ')}>
+                <div className="flex items-center px-3 py-3.5 border-r border-stone-200 bg-stone-50/80">
+                    <Fingerprint size={16} className="text-stone-500" />
+                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={display}
+                    onChange={handleChange}
+                    placeholder="XXXX XXXX XXXX"
+                    aria-label="Aadhaar number"
+                    className="flex-1 px-3 py-3.5 bg-transparent text-base font-sans text-emerald-950 placeholder:text-stone-300 focus:outline-none focus:ring-0 tracking-widest"
+                />
+                {isValid && <CheckCircle2 size={18} className="text-emerald-400 mr-3 shrink-0" />}
+            </div>
+            <p className="text-[10px] text-stone-400 font-sans mt-1.5 pl-1">
+                Used for identity verification only · End-to-end encrypted
+            </p>
+        </div>
+    )
+}
+
+// ─── UPI ID input ─────────────────────────────────────────────────────────────
+function UpiInput({ value, onChange }) {
+    const isValid = /^[\w.]+@[\w]+$/.test(value.trim())
+    return (
+        <div>
+            <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
+                UPI ID
+            </label>
+            <div className={[
+                'flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden transition-colors duration-150',
+                isValid ? 'border-emerald-400' : 'border-stone-200 focus-within:border-emerald-400',
+            ].join(' ')}>
+                <div className="flex items-center px-3 py-3.5 border-r border-stone-200 bg-stone-50/80">
+                    <AtSign size={16} className="text-stone-500" />
+                </div>
+                <input
+                    type="text"
+                    inputMode="email"
+                    value={value}
+                    onChange={e => onChange(e.target.value.trim())}
+                    placeholder="name@ybl"
+                    aria-label="UPI ID"
+                    className="flex-1 px-3 py-3.5 bg-transparent text-base font-sans text-emerald-950 placeholder:text-stone-300 focus:outline-none focus:ring-0"
+                />
+                {isValid && <CheckCircle2 size={18} className="text-emerald-400 mr-3 shrink-0" />}
+            </div>
+            <p className="text-[10px] text-stone-400 font-sans mt-1.5 pl-1">
+                Enables escrow-locked disbursement to your UPI account
+            </p>
+        </div>
+    )
+}
+
+// ─── Register panel ───────────────────────────────────────────────────────────
+function RegisterPanel({ phone, setPhone, aadhaar, setAadhaar, upiId, setUpiId, loading, error, success, onSubmit }) {
+    const allValid =
+        /^[6-9]\d{9}$/.test(phone) &&
+        aadhaar.length === 12 &&
+        /^[\w.]+@[\w]+$/.test(upiId.trim())
+
+    if (success) {
+        return (
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-4 py-6"
+            >
+                <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200">
+                    <CheckCircle2 size={34} className="text-white" strokeWidth={2} />
+                </div>
+                <div className="text-center">
+                    <p className="text-base font-extrabold text-emerald-900">KYC Verified!</p>
+                    <p className="text-xs text-stone-500 mt-1">Entering SheVest…</p>
+                </div>
+            </motion.div>
+        )
+    }
+
+    return (
+        <motion.div
+            key="register-form"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.28 }}
+            className="flex flex-col gap-4"
+        >
+            {/* Anti-fraud explainer */}
+            <div className="flex items-start gap-2 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/60">
+                <ShieldCheck size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-emerald-800 font-sans leading-relaxed">
+                    <strong>Why we ask:</strong> Aadhaar & UPI verify your identity, enable our
+                    anti-fraud UPI name-match, and lock your escrow disbursement to your account only.
+                </p>
+            </div>
+
+            {/* Phone */}
+            <div>
+                <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
+                    Mobile Number
+                </label>
+                <div className={[
+                    'flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden transition-colors duration-150',
+                    /^[6-9]\d{9}$/.test(phone) ? 'border-emerald-400' : 'border-stone-200 focus-within:border-emerald-400',
+                ].join(' ')}>
+                    <div className="flex items-center gap-1 px-3 py-3.5 border-r border-stone-200 bg-stone-50/80">
+                        <span className="text-base">🇮🇳</span>
+                        <span className="text-sm font-semibold text-stone-600 font-sans">+91</span>
+                    </div>
+                    <input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        value={phone}
+                        onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="98765 43210"
+                        className="flex-1 px-3 py-3.5 bg-transparent text-base font-sans text-emerald-950 placeholder:text-stone-300 focus:outline-none"
+                    />
+                    {/^[6-9]\d{9}$/.test(phone) && <CheckCircle2 size={18} className="text-emerald-400 mr-3 shrink-0" />}
+                </div>
+            </div>
+
+            {/* Aadhaar */}
+            <AadhaarInput value={aadhaar} onChange={setAadhaar} />
+
+            {/* UPI */}
+            <UpiInput value={upiId} onChange={setUpiId} />
+
+            {/* Error */}
+            {error && (
+                <p className="text-xs text-rose-500 font-sans text-center">{error}</p>
+            )}
+
+            {/* CTA */}
+            <motion.button
+                onClick={onSubmit}
+                disabled={!allValid || loading}
+                whileTap={{ scale: 0.97 }}
+                className={[
+                    'w-full flex items-center justify-center gap-2',
+                    'py-4 rounded-2xl font-bold text-base font-sans',
+                    'transition-all duration-200',
+                    allValid && !loading
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600'
+                        : 'bg-stone-100 text-stone-400 cursor-not-allowed',
+                ].join(' ')}
+            >
+                {loading ? (
+                    <><RefreshCw size={16} className="animate-spin" /><span>Verifying…</span></>
+                ) : (
+                    <><CreditCard size={16} strokeWidth={2} /><span>Verify &amp; Create Account</span></>
+                )}
+            </motion.button>
+        </motion.div>
+    )
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 export default function BorrowerLogin() {
     const navigate  = useNavigate()
     const appCtx    = useApp()
-
-    // Support both Agent-3 loginUser and legacy login
     const loginUser = appCtx.loginUser ?? ((role) => appCtx.login(role))
 
+    // ── Mode: 'login' | 'register' ───────────────────────────────────────────
+    const [mode,     setMode]     = useState('login')
+
+    // ── Login sub-state ──────────────────────────────────────────────────────
     const [step,     setStep]     = useState('phone')  // 'phone' | 'otp'
     const [phone,    setPhone]    = useState('')
     const [otp,      setOtp]      = useState('')
     const [loading,  setLoading]  = useState(false)
     const [error,    setError]    = useState('')
-    const [demoHint, setDemoHint] = useState('')  // shows demo_otp in UI
+    const [demoHint, setDemoHint] = useState('')
 
-    // ── Send OTP ─────────────────────────────────────────────────────────────
+    // ── Register sub-state ───────────────────────────────────────────────────
+    const [regPhone,   setRegPhone]   = useState('')
+    const [aadhaar,    setAadhaar]    = useState('')   // raw 12 digits
+    const [upiId,      setUpiId]      = useState('')
+    const [regLoading, setRegLoading] = useState(false)
+    const [regError,   setRegError]   = useState('')
+    const [regSuccess, setRegSuccess] = useState(false)
+
+    // Reset sub-state when toggling mode
+    const handleModeChange = useCallback((m) => {
+        setMode(m)
+        setError('')
+        setRegError('')
+        setStep('phone')
+        setOtp('')
+    }, [])
+
+    // ── Login handlers ───────────────────────────────────────────────────────
     const handleSendOtp = async () => {
         setError('')
         setLoading(true)
         try {
             const res = await sendOtp(phone)
-            // Backend returns demo_otp in dev mode — show it as a hint
             if (res?.data?.demo_otp) setDemoHint(res.data.demo_otp)
             setStep('otp')
         } catch (err) {
@@ -384,17 +623,13 @@ export default function BorrowerLogin() {
         }
     }
 
-    // ── Verify OTP ───────────────────────────────────────────────────────────
     const handleVerify = async () => {
         setError('')
-        if (otp.replace(/\s/g, '').length < 6) {
-            setError('Please enter all 6 digits.')
-            return
-        }
+        if (otp.replace(/\s/g, '').length < 6) { setError('Please enter all 6 digits.'); return }
         setLoading(true)
         try {
             const res = await verifyOtp(phone, otp.replace(/\s/g, ''))
-            const { uid, trust_score, chit_cycles_completed } = res?.data ?? {}
+            const { uid, chit_cycles_completed } = res?.data ?? {}
             loginUser('borrower', { phone, uid, isNewUser: !chit_cycles_completed })
         } catch (err) {
             setError(err.message || 'Incorrect code. Please try again.')
@@ -404,9 +639,7 @@ export default function BorrowerLogin() {
     }
 
     const handleResend = async () => {
-        setOtp('')
-        setError('')
-        setDemoHint('')
+        setOtp(''); setError(''); setDemoHint('')
         setLoading(true)
         try {
             const res = await sendOtp(phone)
@@ -417,6 +650,37 @@ export default function BorrowerLogin() {
             setLoading(false)
         }
     }
+
+    // ── Register handler ─────────────────────────────────────────────────────
+    const handleRegister = useCallback(async () => {
+        setRegError('')
+        const cleanPhone = regPhone.trim()
+        const cleanAadhaar = aadhaar.replace(/\s/g, '')
+        const cleanUpi = upiId.trim()
+
+        if (!/^[6-9]\d{9}$/.test(cleanPhone)) { setRegError('Enter a valid 10-digit mobile number.'); return }
+        if (cleanAadhaar.length !== 12) { setRegError('Aadhaar must be exactly 12 digits.'); return }
+        if (!/^[\w.]+@[\w]+$/.test(cleanUpi)) { setRegError('Enter a valid UPI ID (e.g. name@ybl).'); return }
+
+        setRegLoading(true)
+        try {
+            // Demo: skip real API, create user locally
+            setRegSuccess(true)
+            setTimeout(() => {
+                loginUser('borrower', {
+                    phone: cleanPhone,
+                    uid: `borrower_${Date.now()}`,
+                    isNewUser: true,
+                    aadhaar_last4: cleanAadhaar.slice(-4),
+                    upi_id: cleanUpi,
+                })
+            }, 1200)
+        } catch (err) {
+            setRegError(err.message || 'Registration failed. Please try again.')
+        } finally {
+            setRegLoading(false)
+        }
+    }, [regPhone, aadhaar, upiId, loginUser])
 
     return (
         <div
@@ -438,7 +702,6 @@ export default function BorrowerLogin() {
                 All login options
             </motion.button>
 
-            {/* ── Centered card container ── */}
             <div className="relative z-10 flex-1 flex flex-col justify-center px-5 pb-10">
 
                 {/* Header */}
@@ -446,62 +709,88 @@ export default function BorrowerLogin() {
                     initial={{ opacity: 0, y: -12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: 'easeOut' }}
-                    className="flex flex-col items-center mb-8"
+                    className="flex flex-col items-center mb-6"
                 >
-                    {/* Step-aware icon */}
                     <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200 mb-4">
-                        {step === 'phone'
-                            ? <Phone size={28} className="text-white" strokeWidth={1.8} />
-                            : <ShieldCheck size={28} className="text-white" strokeWidth={1.8} />
+                        {mode === 'register'
+                            ? <UserPlus size={28} className="text-white" strokeWidth={1.8} />
+                            : <Phone size={28} className="text-white" strokeWidth={1.8} />
                         }
                     </div>
-
                     <h1 className="text-2xl font-extrabold text-emerald-950 font-sans tracking-tight">
-                        {step === 'phone' ? 'Member Login' : 'Verify Your Number'}
+                        {mode === 'register' ? 'Create Your Account' : 'Member Login'}
                     </h1>
                     <p className="text-sm text-stone-500 font-sans mt-1 text-center leading-relaxed max-w-xs">
-                        {step === 'phone'
-                            ? 'Enter your registered mobile number to continue'
-                            : 'Enter the OTP we just sent to your phone'
+                        {mode === 'register'
+                            ? 'Verify your identity to access SheVest credit'
+                            : 'Enter your registered mobile number to continue'
                         }
                     </p>
                 </motion.div>
 
-                {/* Frosted glass card */}
+                {/* Toggle */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.08 }}
+                    className="mb-4"
+                >
+                    <MethodToggle mode={mode} onChange={handleModeChange} />
+                </motion.div>
+
+                {/* Card */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
                     className="bg-white/60 backdrop-blur-xl border border-white/40 shadow-lg rounded-3xl p-6"
                 >
                     <AnimatePresence mode="wait">
-                        {step === 'phone' ? (
-                            <PhoneStep
-                                key="phone"
-                                phone={phone}
-                                setPhone={setPhone}
-                                onSendOtp={handleSendOtp}
-                                loading={loading}
-                                error={error}
-                            />
+                        {mode === 'login' ? (
+                            <motion.div key="login" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
+                                <AnimatePresence mode="wait">
+                                    {step === 'phone' ? (
+                                        <PhoneStep
+                                            key="phone"
+                                            phone={phone}
+                                            setPhone={setPhone}
+                                            onSendOtp={handleSendOtp}
+                                            loading={loading}
+                                            error={error}
+                                        />
+                                    ) : (
+                                        <OtpStep
+                                            key="otp"
+                                            phone={phone}
+                                            otp={otp}
+                                            setOtp={setOtp}
+                                            onVerify={handleVerify}
+                                            onBack={() => { setStep('phone'); setOtp(''); setError('') }}
+                                            onResend={handleResend}
+                                            loading={loading}
+                                            error={error}
+                                            demoHint={demoHint}
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </motion.div>
                         ) : (
-                            <OtpStep
-                                key="otp"
-                                phone={phone}
-                                otp={otp}
-                                setOtp={setOtp}
-                                onVerify={handleVerify}
-                                onBack={() => { setStep('phone'); setOtp(''); setError('') }}
-                                onResend={handleResend}
-                                loading={loading}
-                                error={error}
-                                demoHint={demoHint}
-                            />
+                            <motion.div key="register" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
+                                <RegisterPanel
+                                    phone={regPhone} setPhone={setRegPhone}
+                                    aadhaar={aadhaar} setAadhaar={setAadhaar}
+                                    upiId={upiId} setUpiId={setUpiId}
+                                    loading={regLoading}
+                                    error={regError}
+                                    success={regSuccess}
+                                    onSubmit={handleRegister}
+                                />
+                            </motion.div>
                         )}
                     </AnimatePresence>
                 </motion.div>
 
-                {/* ── Trust badge ── */}
+                {/* Trust badge */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -510,11 +799,11 @@ export default function BorrowerLogin() {
                 >
                     <ShieldCheck size={13} className="text-emerald-400" />
                     <span className="text-xs text-stone-400 font-sans">
-                        Your number is never shared with lenders
+                        Your data is encrypted and never shared with lenders
                     </span>
                 </motion.div>
 
-                {/* ── Demo quick-login ── */}
+                {/* Demo shortcut */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -525,7 +814,7 @@ export default function BorrowerLogin() {
                         ⚡ Demo shortcut
                     </p>
                     <button
-                        onClick={() => loginUser('borrower', { phone: '9876543210', isNewUser: true })}
+                        onClick={() => loginUser('borrower', { phone: '9876543210', uid: 'user_demo_001', isNewUser: false })}
                         className="w-full text-sm font-semibold text-emerald-700 font-sans py-2 rounded-xl bg-white/60 hover:bg-emerald-50 border border-emerald-200/50 transition-colors"
                     >
                         Quick Login as Borrower (Kavita)

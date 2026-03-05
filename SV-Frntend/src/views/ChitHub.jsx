@@ -20,6 +20,8 @@ import {
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import PillTag from '../components/PillTag'
+import ActionButton from '../components/atoms/ActionButton'
+import MockPaymentGateway from '../components/organisms/MockPaymentGateway'
 import { useApp, P2P_TRUST_GATE } from '../context/AppContext'
 import { payInstallment, API_BASE } from '../api/shevestApi'
 
@@ -144,7 +146,7 @@ function TrustProgressCard({ score }) {
                     <span className="text-sm font-bold text-stone-700">Trust Score Progress</span>
                 </div>
                 <span className={`text-sm font-extrabold tabular-nums ${ unlocked ? 'text-emerald-600' : 'text-amber-600' }`}>
-                    {score} / {P2P_TRUST_GATE}
+                    {Math.min(score, P2P_TRUST_GATE)} / {P2P_TRUST_GATE}
                 </span>
             </div>
 
@@ -204,7 +206,7 @@ export default function ChitHub() {
     const {
         t, trustScore, chitCyclesCompleted,
         installmentsPaidThisCycle, cycleProgress, currentUserUid,
-        installmentsLeft, applyInstallmentResult, setApiNotice,
+        installmentsLeft, setApiNotice, recordInstallmentPaid,
         INSTALLMENTS_PER_CYCLE, syncUserFromBackend,
     } = useApp()
 
@@ -212,8 +214,10 @@ export default function ChitHub() {
     const [showToast, setShowToast] = useState(false)
     const [payError, setPayError] = useState('')
     const [resetState, setResetState] = useState('idle') // 'idle' | 'loading' | 'done'
+    const [showPayGateway, setShowPayGateway] = useState(false)
 
-    const handlePayInstallment = useCallback(async () => {
+    // Open the mock escrow gateway instead of calling the API directly
+    const handleOpenPayment = useCallback(() => {
         if (payState !== 'idle') return
         if (!currentUserUid) {
             setPayError('Please register first so your savings are safely recorded.')
@@ -221,18 +225,16 @@ export default function ChitHub() {
             return
         }
         setPayError('')
-        setPayState('loading')
-        try {
-            const response = await payInstallment(currentUserUid, installmentsPaidThisCycle + 1)
-            applyInstallmentResult(response.data)
-            setPayState('success')
-            setShowToast(true)
-            setTimeout(() => { setPayState('idle'); setShowToast(false) }, 3000)
-        } catch (error) {
-            setPayState('idle')
-            setPayError(error.message || 'Connection issue. Please try again.')
-        }
-    }, [payState, currentUserUid, installmentsPaidThisCycle, applyInstallmentResult, setApiNotice])
+        setShowPayGateway(true)
+    }, [payState, currentUserUid, setApiNotice])
+
+    // Called by gateway on successful payment — awards trust points locally
+    const handlePaySuccess = useCallback(() => {
+        recordInstallmentPaid()
+        setPayState('success')
+        setShowToast(true)
+        setTimeout(() => { setPayState('idle'); setShowToast(false) }, 3000)
+    }, [recordInstallmentPaid])
 
     const handleResetDemo = useCallback(async () => {
         if (resetState !== 'idle') return
@@ -251,8 +253,8 @@ export default function ChitHub() {
     const potFill = ((10 - installmentsLeft) / 10) * 100  // % of ₹50k collected this month
 
     return (
-        <div className="scroll-area">
-            <div className="flex flex-col gap-4 px-4 py-4 pb-6">
+        <div className="h-full overflow-y-auto overscroll-contain">
+            <div className="flex flex-col gap-4 px-4 pt-6 pb-32">
 
                 {/* ── Toast notification ── */}
                 <div
@@ -369,33 +371,19 @@ export default function ChitHub() {
                         />
                     </div>
 
-                    <button
-                        id="pay-installment-btn"
-                        onClick={handlePayInstallment}
+                    <ActionButton
+                        variant="emerald"
+                        onClick={handleOpenPayment}
+                        isLoading={payState === 'loading'}
                         disabled={payState !== 'idle'}
-                        className={`
-              btn-emerald w-full text-base
-              ${payState !== 'idle' ? 'opacity-80' : 'pulse-trust'}
-            `}
-                        aria-busy={payState === 'loading'}
+                        className="w-full mt-4 py-4 rounded-2xl text-base"
                     >
-                        {payState === 'loading' ? (
-                            <span className="flex items-center gap-2">
-                                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                Processing installment...
-                            </span>
-                        ) : payState === 'success' ? (
-                            <span className="flex items-center gap-2">
-                                <CheckCircle2 size={18} />
-                                {t.paySuccess}
-                            </span>
+                        {payState === 'success' ? (
+                            <><CheckCircle2 size={18} />{t.paySuccess}</>
                         ) : (
-                            <span className="flex items-center gap-2">
-                                <Coins size={18} />
-                                {t.payInstallment}
-                            </span>
+                            <><Coins size={18} />Pay ₹{INSTALLMENT_AMT.toLocaleString('en-IN')} Installment</>
                         )}
-                    </button>
+                    </ActionButton>
 
                     {/* Trust score gain preview */}
                     {payState === 'idle' && (
@@ -507,6 +495,14 @@ export default function ChitHub() {
                 </GlassCard>
 
             </div>
+
+            {/* ── Mock Escrow Payment Gateway ── */}
+            <MockPaymentGateway
+                isOpen={showPayGateway}
+                amount={INSTALLMENT_AMT}
+                onSuccess={handlePaySuccess}
+                onClose={() => setShowPayGateway(false)}
+            />
         </div>
     )
 }

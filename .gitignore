@@ -19,6 +19,7 @@ SV-Frntend/.env
 
 # Firebase secrets
 firebase_key.json
+FIREBASE_KEY_PATH
 serviceAccountKey.json
 firebase-adminsdk.json
 *adminsdk*.json

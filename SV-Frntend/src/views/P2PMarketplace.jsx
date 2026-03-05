@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Lock, ShieldCheck, TrendingUp, Star,
     Clock, Percent, IndianRupee, ChevronRight, Sparkles,
-    Users, Loader2,
+    Users, Loader2, Building2, MapPin, CreditCard,
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import PillTag from '../components/PillTag'
@@ -78,6 +78,58 @@ const LOANS = [
     },
 ]
 
+// ─── Nearby NGO Lenders (borrower view) ─────────────────────────────────────
+const NGO_LENDERS = [
+    {
+        id: 'N001',
+        name: 'GramSeva Foundation',
+        avatar: 'GS',
+        location: 'Pune, MH · 8 km away',
+        maxLoan: 25000,
+        interest: '1.5% p.a.',
+        tenure: 'Up to 18 months',
+        trustScore: 96,
+        speciality: 'Women micro-enterprise loans',
+        verified: true,
+    },
+    {
+        id: 'N002',
+        name: 'Saheli Saksham Trust',
+        avatar: 'SS',
+        location: 'Nagpur, MH · 12 km away',
+        maxLoan: 15000,
+        interest: '1.8% p.a.',
+        tenure: 'Up to 12 months',
+        trustScore: 91,
+        speciality: 'Agriculture & livelihood',
+        verified: true,
+    },
+    {
+        id: 'N003',
+        name: 'Shakti Vikas NGO',
+        avatar: 'SV',
+        location: 'Jalgaon, MH · 34 km away',
+        maxLoan: 10000,
+        interest: '2.0% p.a.',
+        tenure: 'Up to 9 months',
+        trustScore: 87,
+        speciality: 'Education & skill loans',
+        verified: true,
+    },
+    {
+        id: 'N004',
+        name: 'Umang Rural Finance',
+        avatar: 'UR',
+        location: 'Nashik, MH · 58 km away',
+        maxLoan: 50000,
+        interest: '1.2% p.a.',
+        tenure: 'Up to 24 months',
+        trustScore: 94,
+        speciality: 'Business expansion capital',
+        verified: true,
+    },
+]
+
 // ─── Framer-Motion Variants ───────────────────────────────────────────────────
 const containerVariants = {
     hidden: {},
@@ -104,7 +156,7 @@ function MiniTrustBar({ score }) {
         <div className="w-full">
             <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-semibold text-stone-500">Your Trust Score</span>
-                <span className="text-xs font-bold text-emerald-700">{score} / {P2P_TRUST_GATE}</span>
+                <span className="text-xs font-bold text-emerald-700">{Math.min(score, P2P_TRUST_GATE)} / {P2P_TRUST_GATE}</span>
             </div>
             <div className="progress-track">
                 <div
@@ -113,22 +165,21 @@ function MiniTrustBar({ score }) {
                 />
             </div>
             <p className="text-[10px] text-stone-400 mt-1.5 text-center">
-                {P2P_TRUST_GATE - score} more points needed
+                {score >= P2P_TRUST_GATE ? 'Trust built — tap vouch below to unlock' : `${P2P_TRUST_GATE - score} more points needed`}
             </p>
         </div>
     )
 }
 
 // ─── Locked Overlay ───────────────────────────────────────────────────────────
-function LockedOverlay({ t, trustScore, onGoToChitHub, setTrustScoreManual, userRole, marketMessage }) {
+function LockedOverlay({ t, trustScore, onGoToChitHub, setTrustScoreManual, userRole, marketMessage, onVouchGranted }) {
     const [vouchState, setVouchState] = useState('idle') // 'idle' | 'pinging'
 
     const handleRequestVouch = () => {
         if (vouchState !== 'idle') return
         setVouchState('pinging')
-        setTimeout(() => {
-            setTrustScoreManual(80)
-        }, 2000)
+        setTrustScoreManual(prev => Math.max(prev, P2P_TRUST_GATE))
+        onVouchGranted?.()
     }
 
     return (
@@ -313,7 +364,93 @@ function LockedOverlay({ t, trustScore, onGoToChitHub, setTrustScoreManual, user
     )
 }
 
-// ─── Loan Card ────────────────────────────────────────────────────────────────
+// ─── NGO Lender Card (borrower view) ────────────────────────────────────────
+function NgoLenderCard({ ngo }) {
+    const [applied, setApplied] = useState(false)
+
+    return (
+        <motion.div variants={cardVariants}>
+            <GlassCard variant="base" padding="p-0" className="overflow-hidden">
+                {/* Header */}
+                <div className="p-4 pb-3">
+                    <div className="flex items-start gap-3">
+                        <span className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_4px_12px_rgba(245,158,11,0.30)]">
+                            {ngo.avatar}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-stone-800 text-sm">{ngo.name}</span>
+                                {ngo.verified && (
+                                    <PillTag color="trust" icon={ShieldCheck} label="RBI Verified" size="sm" />
+                                )}
+                            </div>
+                            <p className="text-xs text-stone-400 mt-0.5 flex items-center gap-1">
+                                <MapPin size={10} />{ngo.location}
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-end flex-shrink-0">
+                            <div className="flex items-center gap-1">
+                                <Star size={11} className="text-amber-500 fill-amber-500" />
+                                <span className="text-sm font-extrabold text-stone-700">{ngo.trustScore}%</span>
+                            </div>
+                            <span className="text-[9px] text-stone-400">Trust</span>
+                        </div>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-1.5">
+                        <Building2 size={11} className="text-amber-500" />
+                        <p className="text-xs text-stone-500 italic">{ngo.speciality}</p>
+                    </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center divide-x divide-stone-100/60 px-4 py-3" style={{ background: 'rgba(251,191,36,0.07)' }}>
+                    <div className="flex-1 flex flex-col items-center gap-0.5 pr-3">
+                        <span className="flex items-center gap-0.5 text-base font-extrabold text-amber-700">
+                            <IndianRupee size={14} strokeWidth={2.5} />
+                            {ngo.maxLoan.toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-[10px] text-stone-400">Max Loan</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-0.5 px-3">
+                        <span className="flex items-center gap-0.5 text-sm font-bold text-stone-700">
+                            <Percent size={12} />{ngo.interest}
+                        </span>
+                        <span className="text-[10px] text-stone-400">Interest</span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center gap-0.5 pl-3">
+                        <span className="flex items-center gap-0.5 text-sm font-bold text-stone-700">
+                            <Clock size={12} />{ngo.tenure}
+                        </span>
+                        <span className="text-[10px] text-stone-400">Tenure</span>
+                    </div>
+                </div>
+
+                {/* CTA */}
+                <div className="px-4 py-3">
+                    <button
+                        onClick={() => setApplied(a => !a)}
+                        className={`
+                            w-full flex items-center justify-center gap-2
+                            py-3 rounded-2xl text-sm font-bold
+                            transition-all duration-300
+                            ${applied
+                                ? 'bg-emerald-100/80 text-emerald-700 border border-emerald-200/60'
+                                : 'bg-gradient-to-r from-amber-400 to-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.25)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.35)]'
+                            }
+                        `}
+                    >
+                        {applied
+                            ? <><ShieldCheck size={16} /> Applied — Awaiting Review</>
+                            : <><CreditCard size={16} /> Apply for Credit <ChevronRight size={15} /></>
+                        }
+                    </button>
+                </div>
+            </GlassCard>
+        </motion.div>
+    )
+}
+
+// ─── Loan Card (NGO invest view) ──────────────────────────────────────────────
 function LoanCard({ loan, t }) {
     const [funded, setFunded] = useState(false)
 
@@ -415,23 +552,23 @@ function LoanCard({ loan, t }) {
     )
 }
 
-// ─── Unlocked Marketplace ─────────────────────────────────────────────────────
-function UnlockedMarketplace({ t, loans }) {
+// ─── NGO Invest Marketplace ───────────────────────────────────────────────────
+function NgoMarketplace({ t, loans }) {
     return (
         <motion.div
-            key="unlocked"
+            key="ngo-unlocked"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
             className="h-full"
         >
-            <div className="scroll-area px-4 py-4 pb-6">
+            <div className="h-full overflow-y-auto overscroll-contain px-4 pt-4 pb-32">
                 <div className="flex items-start justify-between mb-4">
                     <div>
-                        <h1 className="section-title text-xl">{t.p2pTitle}</h1>
-                        <p className="section-subtitle mt-0.5">{t.p2pSubtitle}</p>
+                        <h1 className="section-title text-xl">Investment Opportunities</h1>
+                        <p className="section-subtitle mt-0.5">Fund verified borrowers in your network</p>
                     </div>
-                    <PillTag color="trust" icon={ShieldCheck} label="Unlocked" pulse size="sm" />
+                    <PillTag color="amber" icon={Building2} label="NGO View" size="sm" />
                 </div>
 
                 <motion.div
@@ -440,11 +577,11 @@ function UnlockedMarketplace({ t, loans }) {
                     transition={{ delay: 0.2 }}
                     className="mb-4"
                 >
-                    <GlassCard variant="trust" padding="px-4 py-3">
+                    <GlassCard variant="base" padding="px-4 py-3">
                         <div className="flex items-center gap-2">
-                            <Sparkles size={16} className="text-emerald-600 flex-shrink-0" />
-                            <p className="text-xs font-semibold text-emerald-800">
-                                You've earned P2P access through verified Chit cycles. Lend responsibly.
+                            <Sparkles size={16} className="text-amber-500 flex-shrink-0" />
+                            <p className="text-xs font-semibold text-stone-700">
+                                Review community borrowers below and commit interest to fund their goals.
                             </p>
                         </div>
                     </GlassCard>
@@ -465,12 +602,68 @@ function UnlockedMarketplace({ t, loans }) {
     )
 }
 
+// ─── Borrower Credit Marketplace ─────────────────────────────────────────────
+function BorrowerMarketplace({ t }) {
+    return (
+        <motion.div
+            key="borrower-unlocked"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+            className="h-full"
+        >
+            <div className="h-full overflow-y-auto overscroll-contain px-4 pt-4 pb-32">
+                <div className="flex items-start justify-between mb-4">
+                    <div>
+                        <h1 className="section-title text-xl">Nearby NGO Lenders</h1>
+                        <p className="section-subtitle mt-0.5">Apply for credit from verified partner NGOs</p>
+                    </div>
+                    <PillTag color="trust" icon={ShieldCheck} label="Unlocked" pulse size="sm" />
+                </div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="mb-4"
+                >
+                    <GlassCard variant="trust" padding="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-emerald-600 flex-shrink-0" />
+                            <p className="text-xs font-semibold text-emerald-800">
+                                NGOs listed below are RBI-registered and active in your region. Tap an NGO to apply directly.
+                            </p>
+                        </div>
+                    </GlassCard>
+                </motion.div>
+
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="flex flex-col gap-4"
+                >
+                    {NGO_LENDERS.map(ngo => (
+                        <NgoLenderCard key={ngo.id} ngo={ngo} />
+                    ))}
+                </motion.div>
+            </div>
+        </motion.div>
+    )
+}
+
 // ─── Main View ────────────────────────────────────────────────────────────────
 export default function P2PMarketplace() {
-    const { t, trustScore, isP2PUnlocked, setTrustScoreManual, userRole, currentUserUid } = useApp()
+    const { t, trustScore, setTrustScoreManual, userRole, currentUserUid } = useApp()
     const navigate = useNavigate()
     const [marketLoans, setMarketLoans] = useState([])
     const [marketMessage, setMarketMessage] = useState('')
+    // Borrowers unlock ONLY via Community Vouch referral — trust score alone is not enough
+    const [borrowerVouchUnlocked, setBorrowerVouchUnlocked] = useState(false)
+
+    // NGO admins always have full access — borrowers need explicit vouch
+    const isNgo = userRole === 'ngo_admin'
+    const effectivelyUnlocked = isNgo || borrowerVouchUnlocked
 
     useEffect(() => {
         let isMounted = true
@@ -481,7 +674,7 @@ export default function P2PMarketplace() {
                 return
             }
 
-            if (!isP2PUnlocked) {
+            if (!effectivelyUnlocked) {
                 const pointsLeft = Math.max(0, P2P_TRUST_GATE - trustScore)
                 setMarketMessage(
                     pointsLeft > 0
@@ -491,22 +684,27 @@ export default function P2PMarketplace() {
                 return
             }
 
-            try {
-                const response = await getLoanMarket(currentUserUid)
-                if (!isMounted) return
-                setMarketLoans(response.data || [])
-                setMarketMessage('')
-            } catch (error) {
-                if (!isMounted) return
-                setMarketMessage(error.message || 'You need to complete a few more savings cycles before applying for loans.')
+            if (isNgo) {
+                // NGO loads borrower investment opportunities
+                try {
+                    const response = await getLoanMarket(currentUserUid)
+                    if (!isMounted) return
+                    setMarketLoans(response.data || [])
+                    setMarketMessage('')
+                } catch {
+                    if (!isMounted) return
+                    setMarketMessage('')  // Fall back to static LOANS
+                }
+                return
             }
+
+            // Borrower view — NGO lenders are static (no API needed)
+            setMarketMessage('')
         }
 
         loadMarket()
-        return () => {
-            isMounted = false
-        }
-    }, [currentUserUid, trustScore, isP2PUnlocked])
+        return () => { isMounted = false }
+    }, [currentUserUid, trustScore, effectivelyUnlocked, isNgo, borrowerVouchUnlocked])
 
     const mappedLoans = useMemo(() => {
         return marketLoans.map((loan, index) => ({
@@ -531,17 +729,26 @@ export default function P2PMarketplace() {
                 className={`
                     mx-4 mt-3 px-4 py-2.5 rounded-2xl flex items-center gap-2
                     border transition-all duration-500
-                    ${isP2PUnlocked
-                        ? 'bg-emerald-50/90 border-emerald-200/70'
+                    ${effectivelyUnlocked
+                        ? isNgo
+                            ? 'bg-amber-50/90 border-amber-200/70'
+                            : 'bg-emerald-50/90 border-emerald-200/70'
                         : 'bg-amber-50/90 border-amber-200/70'
                     }
                 `}
             >
-                {isP2PUnlocked ? (
+                {isNgo ? (
+                    <>
+                        <Building2 size={14} className="text-amber-600 flex-shrink-0" />
+                        <span className="text-xs font-bold text-amber-800">
+                            NGO Dashboard — Review &amp; fund community borrowers.
+                        </span>
+                    </>
+                ) : effectivelyUnlocked ? (
                     <>
                         <ShieldCheck size={14} className="text-emerald-600 flex-shrink-0" />
                         <span className="text-xs font-bold text-emerald-800">
-                            Marketplace Unlocked — Browse available funding opportunities.
+                            Marketplace Unlocked — Browse NGO lenders near you.
                         </span>
                     </>
                 ) : (
@@ -555,9 +762,7 @@ export default function P2PMarketplace() {
             </div>
 
             <AnimatePresence mode="wait">
-                {isP2PUnlocked ? (
-                    <UnlockedMarketplace key="unlocked" t={t} loans={mappedLoans} />
-                ) : (
+                {!effectivelyUnlocked ? (
                     <LockedOverlay
                         key="locked"
                         t={t}
@@ -566,7 +771,12 @@ export default function P2PMarketplace() {
                         setTrustScoreManual={setTrustScoreManual}
                         userRole={userRole}
                         marketMessage={marketMessage}
+                        onVouchGranted={() => setBorrowerVouchUnlocked(true)}
                     />
+                ) : isNgo ? (
+                    <NgoMarketplace key="ngo" t={t} loans={mappedLoans} />
+                ) : (
+                    <BorrowerMarketplace key="borrower" t={t} />
                 )}
             </AnimatePresence>
         </div>

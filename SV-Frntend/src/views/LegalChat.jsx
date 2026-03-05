@@ -14,7 +14,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, ShieldAlert, ShieldCheck, Mic, ChevronDown } from 'lucide-react'
+import { Send, ShieldAlert, ShieldCheck, Mic, ChevronDown, Image } from 'lucide-react'
 import FirModal from '../components/FirModal'
 import PillTag from '../components/PillTag'
 import { useApp } from '../context/AppContext'
@@ -232,6 +232,34 @@ export default function LegalChat() {
             {/* ── Message Input ── */}
             <div className="px-4 pt-2.5 pb-3 flex-shrink-0">
                 <div className="flex items-end gap-2">
+                    {/* Image attachment button */}
+                    <label
+                        htmlFor="legal-image-upload"
+                        className="
+              w-11 h-11 flex-shrink-0 rounded-2xl cursor-pointer
+              glass-card flex items-center justify-center
+              text-stone-400 hover:text-crimson-600
+              hover:shadow-trust transition-all duration-200
+            "
+                        aria-label="Attach screenshot evidence"
+                        title="Attach screenshot evidence"
+                    >
+                        <Image size={18} />
+                        <input
+                            id="legal-image-upload"
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={e => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                    setInput(prev => prev + (prev ? ' ' : '') + `[Evidence: ${file.name}]`)
+                                    e.target.value = ''
+                                }
+                            }}
+                        />
+                    </label>
+
                     {/* Mic button */}
                     <button
                         className="
