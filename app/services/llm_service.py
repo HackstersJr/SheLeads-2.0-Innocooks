@@ -39,6 +39,34 @@ class LLMService:
             print(f"[Gemini] API error: {exc}")
             return self._fallback_response()
 
+    async def transcribe_audio(self, audio_bytes: bytes, mime_type: str) -> str:
+        """Transcribe speech from audio bytes using Gemini audio understanding.
+
+        Supports WAV, MP3, OGG, FLAC, AAC, AIFF (any format Gemini accepts).
+        Returns the plain-text transcription, or empty string on failure.
+        """
+        if not self._client:
+            print("[Gemini Audio] GEMINI_API_KEY not set — skipping transcription.")
+            return ""
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                    (
+                        "Transcribe every spoken word from this audio clip verbatim. "
+                        "Include all languages (Hindi, English, etc.). "
+                        "Output only the transcription — no timestamps, labels, or commentary."
+                    ),
+                ],
+            )
+            transcript = (response.text or "").strip()
+            print(f"[Gemini Audio] Transcribed {len(audio_bytes)} bytes → {len(transcript)} chars")
+            return transcript
+        except Exception as exc:
+            print(f"[Gemini Audio] Transcription error: {exc}")
+            return ""
+
     async def check_reachable(self) -> bool:
         """Ping Gemini to verify the API key and connectivity."""
         if not self._client:

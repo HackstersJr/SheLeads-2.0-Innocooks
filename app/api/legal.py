@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -11,6 +12,7 @@ from app.services.firebase import firestore_service
 from app.services.legal_analysis_engine import legal_analysis_engine
 from app.services.ocr_service import extract_text_from_image
 from app.services.threat_detection_ai import threat_detection_ai_service
+from app.services.llm_service import llm_service
 
 router = APIRouter(prefix="/legal", tags=["legal"])
 ai_router = APIRouter(prefix="/ai", tags=["ai"])
@@ -87,3 +89,57 @@ async def analyze_screenshot(file: UploadFile = File(...)) -> APIResponse[dict]:
     finally:
         if temp_path is not None and temp_path.exists():
             temp_path.unlink(missing_ok=True)
+
+
+# Supported Gemini audio MIME types
+_AUDIO_MIME_TYPES = {
+    "audio/wav", "audio/wave",
+    "audio/mp3", "audio/mpeg",
+    "audio/aiff", "audio/x-aiff",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+    "audio/webm",
+}
+
+
+@ai_router.post("/analyze-audio", response_model=APIResponse[dict])
+async def analyze_audio(file: UploadFile = File(...)) -> APIResponse[dict]:
+    """Accept a voice recording (MP3/WAV/OGG/FLAC/AAC/AIFF), transcribe it
+    with Gemini audio understanding, then run the Legal Shield threat analysis
+    on the resulting transcript.
+    """
+    filename = file.filename or "audio.wav"
+    mime = (
+        file.content_type
+        or mimetypes.guess_type(filename)[0]
+        or "audio/wav"
+    )
+
+    if mime not in _AUDIO_MIME_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported audio format '{mime}'. Supported: WAV, MP3, OGG, FLAC, AAC, AIFF.",
+        )
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file.")
+
+    transcript = await llm_service.transcribe_audio(audio_bytes, mime)
+    if not transcript.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Could not transcribe audio — file may be silent or in an unsupported codec.",
+        )
+
+    result = await legal_analysis_engine.analyze_input(transcript)
+    result["transcript"] = transcript
+
+    return APIResponse(
+        message=APIMessage(
+            code="AI_AUDIO_ANALYSIS_COMPLETE",
+            text="Voice recording transcribed and legal analysis completed.",
+        ),
+        data=result,
+    )
