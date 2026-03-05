@@ -21,10 +21,11 @@ import { Suspense, lazy, useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
-import BottomNav    from './components/BottomNav'
-import B2BHeader    from './components/B2BHeader'
-import SplashScreen from './components/organisms/SplashScreen'
-import DemoGodMode  from './components/organisms/DemoGodMode'
+import BottomNav         from './components/BottomNav'
+import B2BHeader         from './components/B2BHeader'
+import SplashScreen      from './components/organisms/SplashScreen'
+import DemoGodMode       from './components/organisms/DemoGodMode'
+import PwaInstallPrompt  from './components/atoms/PwaInstallPrompt'
 
 // ─── Lazy-load views ──────────────────────────────────────────────────────────
 const ChitHub        = lazy(() => import('./views/ChitHub'))
@@ -133,6 +134,9 @@ function AuthenticatedApp() {
 
             {/* ── Demo God Mode — always on screen after login ── */}
             <DemoGodMode />
+
+            {/* ── PWA install banner — fires when browser deems app installable ── */}
+            <PwaInstallPrompt />
 
             {/* Role navigator — reacts to GodMode toggleRole */}
             <RoleNavigator />

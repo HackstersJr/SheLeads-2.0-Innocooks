@@ -12,25 +12,35 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['shield.svg'],
+            includeAssets: ['shield.svg', 'icon-192.png', 'icon-512.png'],
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+            },
             manifest: {
-                name: 'SheVest — Micro-Lending Platform',
+                name: 'SheVest - Financial & Legal Shield',
                 short_name: 'SheVest',
-                description: 'Secure P2P micro-lending for unbanked women with AI legal protection.',
-                theme_color: '#059669',
-                background_color: '#FAFAF7',
+                description: 'B2B2C FinTech ecosystem and Auto-FIR generator for women.',
+                theme_color: '#10b981',
+                background_color: '#fafaf9',
                 display: 'standalone',
                 orientation: 'portrait',
                 scope: '/',
                 start_url: '/',
                 icons: [
                     {
-                        src: 'shield.svg',
+                        src: 'icon-192.png',
                         sizes: '192x192',
-                        type: 'image/svg+xml'
-                    }
-                ]
-            }
-        })
+                        type: 'image/png',
+                        purpose: 'any maskable',
+                    },
+                    {
+                        src: 'icon-512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'any maskable',
+                    },
+                ],
+            },
+        }),
     ],
 })
