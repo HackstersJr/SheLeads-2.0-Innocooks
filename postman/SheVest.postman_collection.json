@@ -1,0 +1,240 @@
+{
+  "info": {
+    "name": "SheVest Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "uid",
+      "value": ""
+    },
+    {
+      "key": "phone",
+      "value": "9999444455"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 Register",
+      "request": {
+        "method": "POST",
+        "description": "Creates a new borrower account for the demo flow. Pre-request script sends OTP first.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"otp\": \"123456\",\n  \"aadhaar_number\": \"123412341234\",\n  \"upi_vpa\": \"meena.live@upi\",\n  \"device_id\": \"device_postman_story_001\",\n  \"org_id\": \"org_demo_001\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest({",
+              "  url: pm.variables.get('baseUrl') + '/auth/send-otp',",
+              "  method: 'POST',",
+              "  header: { 'Content-Type': 'application/json' },",
+              "  body: {",
+              "    mode: 'raw',",
+              "    raw: JSON.stringify({ phone: pm.variables.get('phone') })",
+              "  }",
+              "}, function (err, res) {",
+              "  if (err) { console.log('OTP pre-step failed', err); }",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body && body.data && body.data.uid) {",
+              "  pm.collectionVariables.set('uid', body.data.uid);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 Pay Chit",
+      "request": {
+        "method": "POST",
+        "description": "Pays first chit installment and moves trust score from 20 to 40.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"amount\": 200,\n  \"cycle_number\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chit/pay-installment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "chit",
+            "pay-installment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3 Pay Chit",
+      "request": {
+        "method": "POST",
+        "description": "Pays second chit installment and moves trust score from 40 to 60.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"amount\": 200,\n  \"cycle_number\": 2\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chit/pay-installment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "chit",
+            "pay-installment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4 Pay Chit",
+      "request": {
+        "method": "POST",
+        "description": "Pays third chit installment and moves trust score from 60 to 80 (loan threshold reached).",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"amount\": 200,\n  \"cycle_number\": 3\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chit/pay-installment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "chit",
+            "pay-installment"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5 Access Loan Market",
+      "request": {
+        "method": "GET",
+        "description": "Checks that loan market unlocks once trust score reaches 80.",
+        "url": {
+          "raw": "{{baseUrl}}/loans/market?uid={{uid}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "loans",
+            "market"
+          ],
+          "query": [
+            {
+              "key": "uid",
+              "value": "{{uid}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6 Send Threat Message",
+      "request": {
+        "method": "POST",
+        "description": "Submits a threatening message for legal safety analysis.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"message_text\": \"If you do not send money now, I will come to your house and beat you\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/legal/scan-threat",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "legal",
+            "scan-threat"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7 Generate FIR",
+      "request": {
+        "method": "POST",
+        "description": "Runs the threat analysis again to produce structured legal/FIR-ready output.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"message_text\": \"Send money now or I will harm you\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/legal/scan-threat",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "legal",
+            "scan-threat"
+          ]
+        }
+      }
+    }
+  ]
+}
