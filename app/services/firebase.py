@@ -1,10 +1,20 @@
 from __future__ import annotations
 
 import os
+from importlib import import_module
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+try:
+    firebase_admin = import_module("firebase_admin")
+    credentials = import_module("firebase_admin.credentials")
+    firestore = import_module("firebase_admin.firestore")
+except Exception:  # pragma: no cover - optional dependency for local demo mode
+    firebase_admin = None
+    credentials = None
+    firestore = None
 
 from app.models.schemas import (
     Notification,
@@ -16,42 +26,67 @@ from app.models.schemas import (
 )
 
 
+USE_FIRESTORE = os.getenv("USE_FIRESTORE", "false").lower() == "true"
+print("Firestore enabled:", USE_FIRESTORE)
+_db: Any = None
+
+if USE_FIRESTORE and firebase_admin is not None and credentials is not None and firestore is not None:
+    try:
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(os.getenv("FIREBASE_KEY_PATH", "firebase_key.json"))
+            firebase_admin.initialize_app(cred)
+        _db = firestore.client()
+    except Exception:
+        _db = None
+
+
+def get_db() -> Any:
+    return _db
+
+
+def is_firestore_enabled() -> bool:
+    return USE_FIRESTORE and _db is not None
+
+
 class FirestoreService:
     """Firestore-compatible async data service with in-memory fallback for hackathon use."""
 
     def __init__(self) -> None:
         self._use_memory = True
         self._memory_db: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._firestore_client: Any = None
         self._configure_runtime()
 
     def _configure_runtime(self) -> None:
-        enabled = os.getenv("USE_FIRESTORE", "false").lower() == "true"
-        if not enabled:
+        if not is_firestore_enabled():
+            print("Firestore enabled:", False)
             return
 
-        try:
-            from google.cloud import firestore_async  # type: ignore
+        self._firestore_client = get_db()
+        self._use_memory = self._firestore_client is None
+        print("Firestore enabled:", not self._use_memory)
 
-            self._firestore_client = firestore_async.AsyncClient()
-            self._use_memory = False
-        except Exception:
-            self._use_memory = True
+    def _collection_name(self, collection: str) -> str:
+        # Keep existing lower-case API internally while mapping Users for Firestore persistence.
+        if not self._use_memory and collection == "users":
+            return "Users"
+        return collection
 
     async def create_document(self, collection: str, doc_id: str, payload: dict[str, Any]) -> None:
         if self._use_memory:
             self._memory_db[collection][doc_id] = deepcopy(payload)
             return
 
-        ref = self._firestore_client.collection(collection).document(doc_id)
-        await ref.set(payload)
+        ref = self._firestore_client.collection(self._collection_name(collection)).document(doc_id)
+        ref.set(payload)
 
     async def get_document(self, collection: str, doc_id: str) -> Optional[dict[str, Any]]:
         if self._use_memory:
             data = self._memory_db[collection].get(doc_id)
             return deepcopy(data) if data else None
 
-        ref = self._firestore_client.collection(collection).document(doc_id)
-        snap = await ref.get()
+        ref = self._firestore_client.collection(self._collection_name(collection)).document(doc_id)
+        snap = ref.get()
         if not snap.exists:
             return None
         return snap.to_dict()
@@ -66,17 +101,17 @@ class FirestoreService:
             self._memory_db[collection][doc_id] = merged
             return True
 
-        ref = self._firestore_client.collection(collection).document(doc_id)
-        await ref.update(payload)
+        ref = self._firestore_client.collection(self._collection_name(collection)).document(doc_id)
+        ref.update(payload)
         return True
 
     async def list_documents(self, collection: str, limit: int = 20) -> list[dict[str, Any]]:
         if self._use_memory:
             return [deepcopy(item) for item in list(self._memory_db[collection].values())[:limit]]
 
-        query = self._firestore_client.collection(collection).limit(limit)
+        query = self._firestore_client.collection(self._collection_name(collection)).limit(limit)
         docs = []
-        async for row in query.stream():
+        for row in query.stream():
             docs.append(row.to_dict())
         return docs
 
@@ -95,8 +130,8 @@ class FirestoreService:
         from google.cloud.firestore_v1 import Increment  # type: ignore
 
         updates = {key: Increment(delta) for key, delta in increments.items()}
-        ref = self._firestore_client.collection(collection).document(doc_id)
-        await ref.update(updates)
+        ref = self._firestore_client.collection(self._collection_name(collection)).document(doc_id)
+        ref.update(updates)
         return True
 
     async def count_users_by_device(self, device_id: str) -> int:
@@ -104,9 +139,9 @@ class FirestoreService:
             users = self._memory_db["users"].values()
             return sum(1 for user in users if user.get("device_id") == device_id)
 
-        query = self._firestore_client.collection("users").where("device_id", "==", device_id)
+        query = self._firestore_client.collection(self._collection_name("users")).where("device_id", "==", device_id)
         count = 0
-        async for _ in query.stream():
+        for _ in query.stream():
             count += 1
         return count
 
@@ -117,6 +152,13 @@ class FirestoreService:
     async def get_user(self, uid: str) -> Optional[User]:
         raw = await self.get_document("users", uid)
         return User(**raw) if raw else None
+
+    async def find_user_by_phone(self, phone: str) -> Optional[User]:
+        rows = await self.list_documents("users", limit=500)
+        for row in rows:
+            if row.get("phone") == phone:
+                return User(**row)
+        return None
 
     async def update_user(self, uid: str, payload: dict[str, Any]) -> Optional[User]:
         updated = await self.update_document("users", uid, payload)

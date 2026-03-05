@@ -1,0 +1,62 @@
+[ 
+  {
+    "section": "BNS 63",
+    "title": "Rape",
+    "description": "Sexual intercourse with a woman without her consent or against her will constitutes rape under BNS Section 63. Punishable with rigorous imprisonment of not less than 10 years, extendable to life imprisonment.",
+    "keywords": ["rape", "raped", "raping", "forced sex", "without consent", "sexual violence", "sexually assaulted", "violated"]
+  },
+  {
+    "section": "BNS 74",
+    "title": "Assault or Criminal Force to Woman with Intent to Outrage Modesty",
+    "description": "Whoever assaults or uses criminal force to any woman, intending to outrage or knowing it likely to outrage her modesty, shall be punishable with imprisonment up to 5 years and fine.",
+    "keywords": ["molest", "molestation", "touched", "groped", "outrage", "modesty", "sexual assault", "inappropriate touch", "assault", "force", "undress", "stripped"]
+  },
+  {
+    "section": "BNS 75",
+    "title": "Sexual Harassment",
+    "description": "Whoever commits sexual harassment shall be punished. Sexual harassment includes unwelcome physical contact, demands or requests for sexual favours, making sexually coloured remarks, showing pornography.",
+    "keywords": ["sexual harassment", "harassed sexually", "uncomfortable", "inappropriate", "unwanted", "sexual remarks", "uncomfortable touch"]
+  },
+  {
+    "section": "BNS 308",
+    "title": "Extortion",
+    "description": "Putting a person in fear of injury in order to obtain property, repayment, or money can amount to extortion.",
+    "keywords": ["harm", "repay", "money", "loan", "extortion", "threat", "pay", "return money", "collection", "agent"]
+  },
+  {
+    "section": "BNS 351",
+    "title": "Criminal Intimidation",
+    "description": "Threatening injury to person, family, reputation, or property to force action constitutes criminal intimidation.",
+    "keywords": ["harm", "family", "threat", "intimidate", "kill", "hurt", "repay", "money"]
+  },
+  {
+    "section": "BNS 352",
+    "title": "Intentional Insult",
+    "description": "Intentional insult intended to provoke breach of peace can be punishable, including abusive coercive language.",
+    "keywords": ["abuse", "insult", "humiliate", "provoke", "harass", "agent"]
+  },
+  {
+    "section": "IT Act 66E",
+    "title": "Violation of Privacy",
+    "description": "Capturing, publishing, or transmitting private images without consent can violate privacy protections.",
+    "keywords": ["photo", "photos", "leak", "share", "private", "image", "online", "video", "privacy"]
+  },
+  {
+    "section": "IT Act 67",
+    "title": "Publishing or Transmitting Obscene Content",
+    "description": "Publishing or transmitting obscene material in electronic form is punishable under the IT Act.",
+    "keywords": ["obscene", "video", "share", "viral", "post", "publish", "online", "leak"]
+  },
+  {
+    "section": "RBI Digital Lending Guidelines 2022",
+    "title": "Borrower Consent and Protection",
+    "description": "Digital lenders and partners must follow consent-based data collection and prohibit harassment during collections.",
+    "keywords": ["digital lending", "harass", "collection", "agent", "borrower", "loan", "recovery", "coercion"]
+  },
+  {
+    "section": "RBI NBFC Recovery Guidelines",
+    "title": "Fair Recovery Practices",
+    "description": "NBFC recovery must avoid intimidation, threats, abusive behavior, and privacy violations during loan recovery.",
+    "keywords": ["nbfc", "recovery", "collection", "agent", "harass", "threat", "borrower", "loan", "family"]
+  }
+]

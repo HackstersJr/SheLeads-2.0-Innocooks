@@ -3,12 +3,17 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * SheVest App Shell — 3-phase launch sequence
  *
- *   Phase 1 — SplashScreen   (2.5 s, AnimatePresence exit)
- *   Phase 2 — Login          (if !isAuthenticated)
- *   Phase 3 — Authenticated  (BorrowerHub or NgoDashboard based on userRole)
+ *   Phase 1 — SplashScreen      (2.5 s, AnimatePresence exit)
+ *   Phase 2 — Multi-Role Auth   (!isAuthenticated)
+ *               /auth             → AuthEntry   (role selection)
+ *               /auth/borrower    → BorrowerLogin
+ *               /auth/ngo         → NgoLogin
+ *   Phase 3 — Authenticated shell
+ *               Borrower  → /borrower-hub
+ *               NGO admin → /ngo-dashboard
  *
  * DemoGodMode is injected globally in Phase 3 (always visible during pitches).
- * RoleNavigator watches userRole changes from GodMode and auto-navigates.
+ * RoleNavigator watches userRole changes and auto-navigates on role switch.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -28,6 +33,11 @@ const LegalChat      = lazy(() => import('./views/LegalChat'))
 const BorrowerHub    = lazy(() => import('./views/BorrowerHub'))
 const NgoDashboard   = lazy(() => import('./views/NgoDashboard'))
 const Login          = lazy(() => import('./views/Login'))
+
+// ─── Auth views (multi-role flow) ────────────────────────────────────────────
+const AuthEntry      = lazy(() => import('./views/AuthEntry'))
+const BorrowerLogin  = lazy(() => import('./views/BorrowerLogin'))
+const NgoLogin       = lazy(() => import('./views/NgoLogin'))
 
 // ─── Page loading skeleton ────────────────────────────────────────────────────
 function PageSkeleton() {
@@ -61,8 +71,8 @@ function RoleNavigator() {
         // Only navigate when the role value itself changes, not on every render
         if (userRole === prevRoleRef.current) return
         prevRoleRef.current = userRole
-        if (userRole === 'borrower')   navigate('/borrower', { replace: true })
-        if (userRole === 'ngo_admin')  navigate('/ngo',      { replace: true })
+        if (userRole === 'borrower')   navigate('/borrower-hub',    { replace: true })
+        if (userRole === 'ngo_admin')  navigate('/ngo-dashboard',   { replace: true })
     }, [userRole, navigate])
 
     return null
@@ -71,7 +81,7 @@ function RoleNavigator() {
 // ─── Phase 3: Authenticated app shell ────────────────────────────────────────
 function AuthenticatedApp() {
     const { userRole } = useApp()
-    const defaultPath = userRole === 'ngo_admin' ? '/ngo' : '/borrower'
+    const defaultPath = userRole === 'ngo_admin' ? '/ngo-dashboard' : '/borrower-hub'
 
     return (
         <motion.div
@@ -95,23 +105,25 @@ function AuthenticatedApp() {
                 <Suspense fallback={<PageSkeleton />}>
                     <Routes>
                         {/* Role-aware default redirect */}
-                        <Route path="/"          element={<Navigate to={defaultPath} replace />} />
+                        <Route path="/"               element={<Navigate to={defaultPath} replace />} />
 
-                        {/* Primary role views */}
-                        <Route path="/borrower"  element={<BorrowerHub />} />
-                        <Route path="/ngo"       element={<NgoDashboard />} />
+                        {/* Primary role views — canonical post-login URLs */}
+                        <Route path="/borrower-hub"   element={<BorrowerHub />} />
+                        <Route path="/ngo-dashboard"  element={<NgoDashboard />} />
 
                         {/* Core feature views (accessible from both roles via nav) */}
-                        <Route path="/chithub"   element={<ChitHub />} />
-                        <Route path="/p2p"       element={<P2PMarketplace />} />
-                        <Route path="/legal"     element={<LegalChat />} />
+                        <Route path="/chithub"        element={<ChitHub />} />
+                        <Route path="/p2p"            element={<P2PMarketplace />} />
+                        <Route path="/legal"          element={<LegalChat />} />
 
-                        {/* Legacy aliases */}
-                        <Route path="/dashboard" element={<Navigate to={defaultPath} replace />} />
-                        <Route path="/market"    element={<Navigate to="/p2p"       replace />} />
+                        {/* Legacy aliases — preserved for backward compat */}
+                        <Route path="/borrower"       element={<Navigate to="/borrower-hub"   replace />} />
+                        <Route path="/ngo"            element={<Navigate to="/ngo-dashboard"  replace />} />
+                        <Route path="/dashboard"      element={<Navigate to={defaultPath}     replace />} />
+                        <Route path="/market"         element={<Navigate to="/p2p"            replace />} />
 
                         {/* 404 */}
-                        <Route path="*"          element={<Navigate to={defaultPath} replace />} />
+                        <Route path="*"               element={<Navigate to={defaultPath} replace />} />
                     </Routes>
                 </Suspense>
             </main>
@@ -128,11 +140,15 @@ function AuthenticatedApp() {
     )
 }
 
-// ─── Phase 2: Login view ──────────────────────────────────────────────────────
-function LoginPhase() {
+// ─── Phase 2: Multi-role auth flow ───────────────────────────────────────────
+// Renders its own <Routes> so the browser URL updates as the user moves
+// through AuthEntry → BorrowerLogin / NgoLogin, giving each step a back-able
+// URL. A wildcard catch-all redirects any unrecognised path to /auth so
+// unauthenticated deep-links always land on the role-selection screen.
+function AuthPhase() {
     return (
         <motion.div
-            key="login"
+            key="auth"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -140,7 +156,17 @@ function LoginPhase() {
             className="w-full"
         >
             <Suspense fallback={<div className="min-h-screen bg-stone-50" />}>
-                <Login />
+                <Routes>
+                    <Route path="/auth"          element={<AuthEntry />} />
+                    <Route path="/auth/borrower" element={<BorrowerLogin />} />
+                    <Route path="/auth/ngo"      element={<NgoLogin />} />
+
+                    {/* Legacy single-login screen — still reachable */}
+                    <Route path="/login"         element={<Login />} />
+
+                    {/* Any unauthenticated path → role selection */}
+                    <Route path="*"              element={<Navigate to="/auth" replace />} />
+                </Routes>
             </Suspense>
         </motion.div>
     )
@@ -160,8 +186,8 @@ function AppShell() {
                     onComplete={() => setShowSplash(false)}
                 />
             ) : !isAuthenticated ? (
-                // Phase 2 — Login
-                <LoginPhase key="login" />
+                // Phase 2 — Multi-role auth
+                <AuthPhase key="auth" />
             ) : (
                 // Phase 3 — Authenticated shell
                 <AuthenticatedApp key="app" />

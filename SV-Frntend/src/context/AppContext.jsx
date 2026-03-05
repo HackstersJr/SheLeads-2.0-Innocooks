@@ -305,6 +305,47 @@ export function AppProvider({ children }) {
     }, [syncUserFromBackend])
 
     /**
+     * loginUser(role, payload) — Multi-role auth entry point.
+     *
+     * Called by BorrowerLogin and NgoLogin views after successful OTP/credential
+     * verification. Enforces FinTech trust-score rules:
+     *
+     *   · New Borrower  → trustScore initialised to 20 (NOT 0), chitCycles = 0.
+     *   · Return Borrower → trust state synced from backend (if uid present),
+     *                       otherwise preserved from current session.
+     *   · NGO admin     → userRole set to 'ngo_admin'; no trust score change.
+     *
+     * payload shape: { phone?, email?, licenseNo?, uid?, isNewUser? }
+     */
+    const loginUser = useCallback((role, payload = {}) => {
+        const { uid, isNewUser } = payload
+
+        if (role === 'borrower') {
+            if (isNewUser) {
+                // Strictly initialise to 20-point baseline — never 0.
+                setTrustScore(20)
+                setChitCycles(0)
+                setInstPaid(0)
+            } else if (uid) {
+                // Returning user — restore from backend asynchronously.
+                syncUserFromBackend({ uid })
+            }
+            setUserRole('borrower')
+        } else if (role === 'ngo_admin') {
+            // NGO admins do not have a personal trust score.
+            setUserRole('ngo_admin')
+        }
+
+        if (uid) {
+            setCurrentUserUid(uid)
+            localStorage.setItem(UID_STORAGE_KEY, uid)
+        }
+
+        setIsAuthenticated(true)
+        setApiNotice('')
+    }, [syncUserFromBackend])
+
+    /**
      * logout — clears auth state, resets demo trust score.
      */
     const logout = useCallback(() => {
@@ -393,6 +434,7 @@ export function AppProvider({ children }) {
 
         // Auth actions
         login,
+        loginUser,
         logout,
         toggleRole,
 
@@ -411,7 +453,7 @@ export function AppProvider({ children }) {
         isSessionRestoring,
         isAuthenticated, userRole,
         toggleLang, recordInstallmentPaid, setTrustScoreManual, syncUserFromBackend, applyInstallmentResult, setApiNotice,
-        login, logout, toggleRole,
+        login, loginUser, logout, toggleRole,
         isP2PUnlocked, installmentsLeft, cycleProgress, t,
     ])
 

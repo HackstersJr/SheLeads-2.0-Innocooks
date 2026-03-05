@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import APIMessage, APIResponse, ChitPaymentRequest
-from app.services.firebase import firestore_service
+from app.services.firebase import firestore_service, get_db, is_firestore_enabled
 from app.services.trust_engine import trust_engine
 
 router = APIRouter(prefix="/chit", tags=["chit"])
@@ -29,6 +29,25 @@ async def pay_chit_cycle(payload: ChitPaymentRequest) -> APIResponse[dict[str, i
         uid=payload.uid,
         reason=f"Chit cycle payment completed for cycle {payload.cycle_number}",
     )
+
+    if is_firestore_enabled():
+        db = get_db()
+        if db is not None:
+            db.collection("Users").document(payload.uid).update(
+                {
+                    "trust_score": new_score,
+                    "chit_cycles_completed": next_cycles,
+                }
+            )
+    else:
+        await firestore_service.update_user(
+            payload.uid,
+            {
+                "trust_score": new_score,
+                "chit_cycles_completed": next_cycles,
+            },
+        )
+
     await firestore_service.create_financial_audit(
         action="chit_payment",
         uid=payload.uid,

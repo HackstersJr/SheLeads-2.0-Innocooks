@@ -1,10 +1,34 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.models.schemas import EventType, TrustEvent
 from app.services.firebase import firestore_service
 
 
 class TrustEngine:
+    def role_initialization_payload(self, role: str, is_new_user: bool) -> dict[str, Any]:
+        if role == "borrower":
+            payload: dict[str, Any] = {
+                "user_role": "borrower",
+                "admin_privileges": False,
+            }
+            if is_new_user:
+                # Strict baseline for first-time borrowers.
+                payload.update({
+                    "trust_score": 20,
+                    "chit_cycles_completed": 0,
+                })
+            return payload
+
+        if role == "ngo_admin":
+            return {
+                "user_role": "ngo_admin",
+                "admin_privileges": True,
+            }
+
+        raise ValueError("Unsupported role for initialization")
+
     async def apply_chit_payment_reward(self, uid: str, reason: str) -> int:
         return await self._apply_delta(
             uid=uid,

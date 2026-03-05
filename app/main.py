@@ -2,16 +2,88 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+load_dotenv()  # loads .env from project root before any env-dependent imports
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.chit import router as chit_router
-from app.api.legal import router as legal_router
+from app.api.legal import ai_router, router as legal_router
 from app.api.loans import router as loans_router
+from app.api.system import router as system_router
 from app.models.schemas import APIMessage, APIResponse, HealthStatus, LoanStatus, LoanType, Organization, OrgType, P2PLoan, User
 from app.services.firebase import firestore_service
+from app.services.jwt_service import verify_access_token
+
+
+class RoleGuardMiddleware(BaseHTTPMiddleware):
+    """Enforce role-based access for protected dashboard API routes."""
+
+    _protected_routes = {
+        "/borrower-hub": "borrower",
+        "/ngo-dashboard": "ngo_admin",
+        "/auth/borrower-hub": "borrower",
+        "/auth/ngo-dashboard": "ngo_admin",
+    }
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path.rstrip("/") or "/"
+        expected_role = self._protected_routes.get(path)
+
+        # Ignore non-protected routes and CORS preflight requests.
+        if not expected_role or request.method.upper() == "OPTIONS":
+            return await call_next(request)
+
+        auth_header = request.headers.get("Authorization", "")
+        uid: str | None = None
+        role: str | None = None
+
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+            if not token:
+                return JSONResponse(status_code=401, content={"detail": "Missing bearer token."})
+
+            try:
+                payload = verify_access_token(token)
+            except ValueError:
+                return JSONResponse(status_code=401, content={"detail": "Invalid or expired token."})
+
+            uid = str(payload["uid"])
+            role = str(payload["role"])
+            print("JWT verified for user:", uid)
+            print("User role:", role)
+        else:
+            # Demo-safe fallback for legacy callers during transition.
+            legacy_uid = request.headers.get("x-user-uid")
+            if not legacy_uid:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Missing Authorization bearer token."},
+                )
+            uid = legacy_uid
+
+        # Firestore validation: user referenced by token/header must exist.
+        user = await firestore_service.get_user(uid)
+        if not user:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "User not found for provided identity."},
+            )
+
+        # If JWT role missing (legacy fallback), use persisted user role.
+        effective_role = role or user.user_role
+        if effective_role != expected_role:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": f"Access denied: requires role '{expected_role}'."},
+            )
+
+        return await call_next(request)
 
 
 async def _seed_demo_data() -> None:
@@ -95,6 +167,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(RoleGuardMiddleware)
+
 
 @app.get("/health", response_model=APIResponse[HealthStatus])
 async def health() -> APIResponse[HealthStatus]:
@@ -108,4 +182,6 @@ app.include_router(auth_router)
 app.include_router(chit_router)
 app.include_router(loans_router)
 app.include_router(legal_router)
+app.include_router(ai_router)
 app.include_router(admin_router)
+app.include_router(system_router)

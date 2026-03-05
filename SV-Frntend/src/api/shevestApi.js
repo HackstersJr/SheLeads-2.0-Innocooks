@@ -1,5 +1,28 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
+// ── JWT token helpers ────────────────────────────────────────────────────────
+const TOKEN_KEY = 'sv_access_token'
+
+export function saveToken(token) {
+    if (token) sessionStorage.setItem(TOKEN_KEY, token)
+}
+
+export function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY) || null
+}
+
+export function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY)
+}
+
+function authHeaders(extra = {}) {
+    const token = getToken()
+    const headers = { 'Content-Type': 'application/json', ...extra }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return headers
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function parseResponse(response) {
     const contentType = response.headers.get('content-type') || ''
     const isJson = contentType.includes('application/json')
@@ -40,6 +63,27 @@ export async function sendOtp(phone) {
     })
 }
 
+export async function verifyOtp(phone, otp) {
+    const result = await requestJson(`${API_BASE}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp }),
+    })
+    // Persist token immediately so all subsequent calls are authorised
+    if (result?.data?.access_token) saveToken(result.data.access_token)
+    return result
+}
+
+export async function ngoLogin(payload) {
+    const result = await requestJson(`${API_BASE}/auth/ngo-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    if (result?.data?.access_token) saveToken(result.data.access_token)
+    return result
+}
+
 export async function registerUser(payload) {
     return requestJson(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -51,7 +95,7 @@ export async function registerUser(payload) {
 export async function payInstallment(uid, cycleNumber = 1) {
     return requestJson(`${API_BASE}/chit/pay-installment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ uid, amount: 200, cycle_number: cycleNumber }),
     })
 }
@@ -59,7 +103,28 @@ export async function payInstallment(uid, cycleNumber = 1) {
 export async function getLoanMarket(uid) {
     return requestJson(`${API_BASE}/loans/market?uid=${encodeURIComponent(uid)}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
+    })
+}
+
+export async function analyzeScreenshot(file) {
+    const token = getToken()
+    const formData = new FormData()
+    formData.append('file', file)
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return requestJson(`${API_BASE}/ai/analyze-screenshot`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    })
+}
+
+export async function analyzeText(text) {
+    return requestJson(`${API_BASE}/ai/analyze-text`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ text }),
     })
 }
 
@@ -71,7 +136,7 @@ export async function analyzeThreat(chatData) {
 
     const preferred = await fetch(`${API_BASE}/legal/analyze-threat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify(payload),
     })
 
@@ -81,7 +146,7 @@ export async function analyzeThreat(chatData) {
 
     return requestJson(`${API_BASE}/legal/scan-threat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify(payload),
     })
 }

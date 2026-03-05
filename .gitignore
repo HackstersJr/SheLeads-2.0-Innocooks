@@ -17,6 +17,12 @@ SV-Frntend/node_modules/
 SV-Frntend/dist/
 SV-Frntend/.env
 
+# Firebase secrets
+firebase_key.json
+serviceAccountKey.json
+firebase-adminsdk.json
+*adminsdk*.json
+
 # OS
 .DS_Store
 Thumbs.db

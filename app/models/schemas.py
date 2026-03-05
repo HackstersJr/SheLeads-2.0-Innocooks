@@ -72,6 +72,8 @@ class User(BaseModel):
     chit_cycles_completed: int = 0
     active_emergency_loans: int = 0
     lifetime_emergency_loans: int = 0
+    user_role: str = "borrower"
+    admin_privileges: bool = False
     org_id: Optional[str] = None
 
 
@@ -138,13 +140,46 @@ class SuspiciousActivityLog(BaseModel):
     timestamp: datetime = Field(default_factory=utc_now)
 
 
-class SendOTPRequest(BaseModel):
+class BorrowerAuthRequest(BaseModel):
     phone: str = Field(min_length=10, max_length=15)
 
 
-class VerifyOTPRequest(BaseModel):
+class OTPVerifyRequest(BaseModel):
     phone: str = Field(min_length=10, max_length=15)
     otp: str = Field(min_length=4, max_length=6)
+
+
+class UserProfileResponse(BaseModel):
+    uid: str
+    phone: str
+    role: str
+    trust_score: int
+    chit_cycles_completed: int
+    access_token: str
+
+
+class NGOLoginRequest(BaseModel):
+    email: str = Field(min_length=5)
+    password: str = Field(min_length=8)
+    aadhaar_number: str = Field(min_length=12, max_length=12)
+    ngo_license_number: str = Field(min_length=4)
+
+
+class NGOLoginResponse(BaseModel):
+    uid: str
+    role: str
+    org_id: str
+    email: str
+    access_token: str
+
+
+# Backward-compatible aliases for existing imports.
+class SendOTPRequest(BorrowerAuthRequest):
+    pass
+
+
+class VerifyOTPRequest(OTPVerifyRequest):
+    pass
 
 
 class RegisterRequest(BaseModel):
@@ -187,6 +222,8 @@ class ThreatScanResult(BaseModel):
     is_threat_detected: bool = False
     bns_section: str = ""
     draft_fir_text: str = ""
+    reasoning_summary: str | None = None
+    evidence: list[str] | None = None
 
 
 class ModerateTrustRequest(BaseModel):
