@@ -631,23 +631,7 @@ export default function NgoLogin() {
                     </span>
                 </motion.div>
 
-                {/* Demo shortcut */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4, delay: 0.65 }}
-                    className="mt-5 rounded-2xl border border-dashed border-amber-300/70 bg-amber-50/50 px-4 py-3"
-                >
-                    <p className="text-xs text-amber-700 font-semibold font-sans mb-2 text-center">
-                        ⚡ Demo shortcut
-                    </p>
-                    <button
-                        onClick={() => handleSuccess({ uid: 'ngo_admin_001', role: 'ngo_admin', isNewUser: false })}
-                        className="w-full text-sm font-semibold text-amber-700 font-sans py-2 rounded-xl bg-white/60 hover:bg-amber-50 border border-amber-200/50 transition-colors"
-                    >
-                        Quick Login as NGO Admin (GramSeva)
-                    </button>
-                </motion.div>
+
             </div>
         </div>
     )

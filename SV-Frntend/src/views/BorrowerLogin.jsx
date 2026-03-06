@@ -803,23 +803,7 @@ export default function BorrowerLogin() {
                     </span>
                 </motion.div>
 
-                {/* Demo shortcut */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4, delay: 0.65 }}
-                    className="mt-5 rounded-2xl border border-dashed border-amber-300/70 bg-amber-50/50 px-4 py-3"
-                >
-                    <p className="text-xs text-amber-700 font-semibold font-sans mb-2 text-center">
-                        ⚡ Demo shortcut
-                    </p>
-                    <button
-                        onClick={() => loginUser('borrower', { phone: '9876543210', uid: 'user_demo_001', isNewUser: false })}
-                        className="w-full text-sm font-semibold text-emerald-700 font-sans py-2 rounded-xl bg-white/60 hover:bg-emerald-50 border border-emerald-200/50 transition-colors"
-                    >
-                        Quick Login as Borrower (Kavita)
-                    </button>
-                </motion.div>
+
             </div>
         </div>
     )

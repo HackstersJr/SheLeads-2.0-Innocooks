@@ -87,7 +87,7 @@ export default function DemoGodMode() {
   };
 
   const handleReset = () => {
-    setTrustScoreManual(20);
+    setTrustScoreManual(0);
   };
 
   const handleToggleRole = () => {
@@ -179,7 +179,7 @@ export default function DemoGodMode() {
               <GodButton
                 icon={RotateCcw}
                 label="Reset"
-                sublabel="→ 20"
+                sublabel="→ 0"
                 onClick={handleReset}
                 colorClass="text-stone-600"
                 bgClass="bg-white/70 hover:bg-stone-50 border-stone-200/60"

@@ -241,7 +241,7 @@ export default function ChitHub() {
         setResetState('loading')
         try {
             await fetch(`${API_BASE}/admin/reset-demo`, { method: 'POST' })
-            syncUserFromBackend({ uid: currentUserUid || 'user_demo_001', trust_score: 20, chit_cycles_completed: 0 })
+            syncUserFromBackend({ uid: currentUserUid || 'user_001', trust_score: 0, chit_cycles_completed: 0 })
             setResetState('done')
             setTimeout(() => setResetState('idle'), 2500)
         } catch {
@@ -462,12 +462,12 @@ export default function ChitHub() {
                     </GlassCard>
                 )}
 
-                {/* ── RESET DEMO ── */}
+                {/* ── RESET PROGRESS ── */}
                 <GlassCard variant="base" padding="p-4" className="fade-in">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-bold text-stone-600">Reset Demo</p>
-                            <p className="text-[10px] text-stone-400 mt-0.5">Restart trust score to 20 for a fresh demo run</p>
+                            <p className="text-xs font-bold text-stone-600">Reset Progress</p>
+                            <p className="text-[10px] text-stone-400 mt-0.5">Clear trust score and start your chit journey fresh</p>
                         </div>
                         <button
                             type="button"
@@ -488,7 +488,7 @@ export default function ChitHub() {
                             ) : resetState === 'done' ? (
                                 <><CheckCircle2 size={13} /> Reset Done</>
                             ) : (
-                                <><RotateCcw size={13} /> Reset Demo</>
+                                <><RotateCcw size={13} /> Reset Progress</>
                             )}
                         </button>
                     </div>

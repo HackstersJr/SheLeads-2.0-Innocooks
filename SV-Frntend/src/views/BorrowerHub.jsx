@@ -19,6 +19,7 @@
  */
 
 import { useState } from 'react';
+import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet,
@@ -37,11 +38,10 @@ import TrustScoreRing from '../components/molecules/TrustScoreRing';
 import RepaymentItem  from '../components/molecules/RepaymentItem';
 import AutoFirReviewModal from '../components/organisms/AutoFirReviewModal';
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+// ── User profile data ────────────────────────────────────────────────────────
 const MOCK_USER = {
   name: 'Kavita',
   city: 'Bengaluru',
-  trustScore: 74,
   chitGroup: {
     name: 'Bengaluru Makers Circle',
     members: 12,
@@ -210,19 +210,21 @@ function P2PTeaser({ trustScore }) {
 
 // ── View ──────────────────────────────────────────────────────────────────────
 export default function BorrowerHub() {
+  const { trustScore, recordInstallmentPaid } = useApp();
   const [user]                  = useState(MOCK_USER);
   const [repayments, setRepayments] = useState(MOCK_REPAYMENTS);
   const [payingId, setPayingId] = useState(null);
   const [firOpen, setFirOpen]   = useState(false);
   const [firLoading, setFirLoading] = useState(false);
 
-  // ── Pay Now handler (optimistic UI) ────────────────────────────────────
+  // ── Pay Now handler — marks installment paid and updates trust score ──
   const handlePayNow = async (repaymentId) => {
     setPayingId(repaymentId);
     await new Promise((r) => setTimeout(r, 1600));
     setRepayments((prev) =>
       prev.map((r) => r.id === repaymentId ? { ...r, status: 'paid' } : r)
     );
+    recordInstallmentPaid();
     setPayingId(null);
   };
 
@@ -271,7 +273,7 @@ export default function BorrowerHub() {
 
         {/* ── Trust Score Ring ──────────────────────────────────────────── */}
         <GlassCard padding="py-6 px-4" className="w-full flex flex-col items-center mb-4">
-          <TrustScoreRing score={user.trustScore} size={148} />
+          <TrustScoreRing score={trustScore} size={148} />
           <p className="text-xs text-stone-400 mt-3 text-center max-w-[220px] leading-relaxed">
             Pay your next installment to earn <span className="text-emerald-600 font-semibold">+6 pts</span> and get closer to P2P access.
           </p>
@@ -284,7 +286,7 @@ export default function BorrowerHub() {
 
         {/* ── P2P Marketplace teaser ────────────────────────────────────── */}
         <div className="mb-6">
-          <P2PTeaser trustScore={user.trustScore} />
+          <P2PTeaser trustScore={trustScore} />
         </div>
 
         {/* ── Repayment timeline ────────────────────────────────────────── */}

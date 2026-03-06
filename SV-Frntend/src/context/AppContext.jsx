@@ -30,7 +30,7 @@ export const T = {
     EN: {
         // ── App Shell ──
         appName: 'SheVest',
-        poweredBy: 'Powered by SheVest',
+        poweredBy: 'Powered by Innocooks',
         partnerLabel: 'NGO Partner',
         langToggle: 'हिं',
 
@@ -104,7 +104,7 @@ export const T = {
     HI: {
         // ── App Shell ──
         appName: 'शीवेस्ट',
-        poweredBy: 'ShेVest द्वारा संचालित',
+        poweredBy: 'Innocooks द्वारा संचालित',
         partnerLabel: 'NGO साझेदार',
         langToggle: 'EN',
 
@@ -213,7 +213,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 export function AppProvider({ children }) {
     // ── Core state ──────────────────────────────────────────────────────────────
     const [lang, setLang] = useState('EN')
-    const [trustScore, setTrustScore] = useState(20)   // new registrant baseline
+    const [trustScore, setTrustScore] = useState(0)    // 0 until first installment paid
     const [chitCyclesCompleted, setChitCycles] = useState(0)
     const [installmentsPaidThisCycle, setInstPaid] = useState(0)
     const [currentUserUid, setCurrentUserUid] = useState('')
@@ -322,8 +322,8 @@ export function AppProvider({ children }) {
 
         if (role === 'borrower') {
             if (isNewUser) {
-                // Strictly initialise to 20-point baseline — never 0.
-                setTrustScore(20)
+                // New user starts at 0 — score builds with each installment paid.
+                setTrustScore(0)
                 setChitCycles(0)
                 setInstPaid(0)
             } else if (uid) {
@@ -346,14 +346,14 @@ export function AppProvider({ children }) {
     }, [syncUserFromBackend])
 
     /**
-     * logout — clears auth state, resets demo trust score.
+     * logout — clears auth state, resets trust score.
      */
     const logout = useCallback(() => {
         localStorage.removeItem(UID_STORAGE_KEY)
         setIsAuthenticated(false)
         setUserRole(null)
         setCurrentUserUid('')
-        setTrustScore(20)
+        setTrustScore(0)
         setChitCycles(0)
         setInstPaid(0)
         setApiNotice('')
