@@ -699,6 +699,7 @@ function LegalProxyCard({ proxy, onMarkHandled }) {
 
 export default function NgoDashboard() {
   const { hasPaidCurrentCycle, disputeStatus, activeLegalProxies, markProxyHandled } = useApp();
+  const legalProxies = Array.isArray(activeLegalProxies) ? activeLegalProxies : [];
   const [users, setUsers]               = useState(MOCK_PENDING_USERS);
   const [approvingId, setApprovingId]   = useState(null);
   const [overrideTarget, setOverrideTarget] = useState(null); // user object
@@ -920,9 +921,9 @@ export default function NgoDashboard() {
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
               🛡️ Legal Proxy Requests
             </h2>
-            { activeLegalProxies.length > 0 && (
+            { legalProxies.length > 0 && (
               <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                {activeLegalProxies.filter(p => !p.handled).length} pending
+                {legalProxies.filter(p => !p.handled).length} pending
               </span>
             )}
           </div>
@@ -930,7 +931,7 @@ export default function NgoDashboard() {
             FIR drafts forwarded by members. Act as their legal proxy to file with NCRP.
           </p>
 
-          { activeLegalProxies.length === 0 ? (
+          { legalProxies.length === 0 ? (
             <div className="
               flex flex-col items-center justify-center gap-2 p-8
               rounded-2xl
@@ -945,7 +946,7 @@ export default function NgoDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {activeLegalProxies.map(proxy => (
+              {legalProxies.map(proxy => (
                 <LegalProxyCard
                   key={proxy.id}
                   proxy={proxy}
