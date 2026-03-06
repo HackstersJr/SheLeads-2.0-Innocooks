@@ -38,6 +38,11 @@ import {
   PhoneCall,
   Unlock,
   TriangleAlert,
+  Shield,
+  FileText,
+  Download,
+  CheckCheck,
+  ExternalLink,
 } from 'lucide-react';
 import GlassCard    from '../components/atoms/GlassCard';
 import PillTag      from '../components/atoms/PillTag';
@@ -562,8 +567,138 @@ function KycUserRow({ user, onApproveKyc, onOverrideDevice, approving, overridin
 }
 
 // ── View ──────────────────────────────────────────────────────────────────────
+// ─── Legal Proxy FIR Card ────────────────────────────────────────────────────
+function LegalProxyCard({ proxy, onMarkHandled }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const handleDownload = () => {
+    const content = [
+      'SHEVEST AUTO-FIR DRAFT',
+      '========================',
+      `Member   : ${proxy.memberName}`,
+      `NGO      : ${proxy.ngoName}`,
+      `Threat   : ${proxy.threatType}`,
+      `Date     : ${new Date(proxy.timestamp).toLocaleString('en-IN')}`,
+      '',
+      'INCIDENT DESCRIPTION:',
+      proxy.firDraft || '(No description provided)',
+      '',
+      'Filed via SheVest Legal Shield — BNS 2023 / IT Act / PMLA',
+    ].join('\n')
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `FIR_${proxy.memberName.replace(/\s+/g, '_')}_${proxy.id}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className={`
+      rounded-2xl border backdrop-blur-sm overflow-hidden
+      transition-all duration-300
+      ${ proxy.handled
+        ? 'bg-slate-50/70 border-slate-200/50'
+        : 'bg-gradient-to-br from-slate-900/5 via-rose-50/40 to-slate-50/60 border-rose-200/60 shadow-[0_4px_20px_rgba(225,29,72,0.08)]'
+      }
+    `}>
+      {/* Status strip */}
+      <div className={`h-1 w-full ${ proxy.handled ? 'bg-slate-300' : 'bg-gradient-to-r from-rose-400 to-rose-600' }`} />
+
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-xl ${ proxy.handled ? 'bg-slate-100' : 'bg-rose-100/80 border border-rose-200/50' }`}>
+              <Shield size={14} className={ proxy.handled ? 'text-slate-400' : 'text-rose-600' } strokeWidth={2} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">{proxy.memberName}</p>
+              <p className="text-[10px] text-slate-500">{proxy.ngoName}</p>
+            </div>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            proxy.handled
+              ? 'bg-slate-100 text-slate-500'
+              : 'bg-rose-100 text-rose-700'
+          }`}>
+            { proxy.handled ? '✓ Handled' : '⚠ Pending' }
+          </span>
+        </div>
+
+        {/* Threat type */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <FileText size={12} className="text-slate-500" strokeWidth={2} />
+          <span className="text-xs font-semibold text-slate-700">{proxy.threatType}</span>
+        </div>
+
+        {/* Timestamp */}
+        <p className="text-[10px] text-slate-400 mb-3">
+          Received: {new Date(proxy.timestamp).toLocaleString('en-IN')}
+        </p>
+
+        {/* Expandable FIR preview */}
+        {proxy.firDraft && (
+          <div className="mb-3">
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-rose-700 hover:text-rose-800 transition-colors"
+            >
+              <FileText size={11} strokeWidth={2.5} />
+              {expanded ? 'Hide' : 'View'} AI-Drafted FIR
+              <ChevronRight size={11} className={`transition-transform duration-200 ${ expanded ? 'rotate-90' : '' }`} />
+            </button>
+            {expanded && (
+              <div className="mt-2 p-3 rounded-xl bg-slate-800/5 border border-slate-200/60 text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+                {proxy.firDraft}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        { !proxy.handled && (
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={handleDownload}
+              title="Use this document to file directly on the National Cyber Crime Reporting Portal on behalf of the member."
+              className="
+                flex-1 flex items-center justify-center gap-1.5
+                py-2 rounded-xl text-[11px] font-bold
+                bg-gradient-to-r from-slate-700 to-slate-900
+                text-white shadow-md
+                hover:shadow-lg hover:scale-[1.02] active:scale-95
+                transition-all duration-200
+              "
+            >
+              <Download size={12} strokeWidth={2.5} />
+              Download PDF for NCRP e-Filing
+              <ExternalLink size={10} className="opacity-70" />
+            </button>
+            <button
+              onClick={() => onMarkHandled(proxy.id)}
+              className="
+                flex items-center justify-center gap-1
+                px-3 py-2 rounded-xl text-[11px] font-bold
+                bg-emerald-50 border border-emerald-200/70
+                text-emerald-700
+                hover:bg-emerald-100 active:scale-95
+                transition-all duration-200
+              "
+            >
+              <CheckCheck size={13} strokeWidth={2.5} />
+              Mark Handled
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function NgoDashboard() {
-  const { hasPaidCurrentCycle, disputeStatus } = useApp();
+  const { hasPaidCurrentCycle, disputeStatus, activeLegalProxies, markProxyHandled } = useApp();
   const [users, setUsers]               = useState(MOCK_PENDING_USERS);
   const [approvingId, setApprovingId]   = useState(null);
   const [overrideTarget, setOverrideTarget] = useState(null); // user object
@@ -774,6 +909,51 @@ export default function NgoDashboard() {
               />
             ))}
           </div>
+        </div>
+
+        {/* ── LEGAL PROXY REQUESTS ─────────────────────────────────── */}
+        <div className="mt-8 mb-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="bg-slate-800/10 p-1.5 rounded-xl border border-slate-300/50">
+              <Shield size={15} className="text-slate-700" strokeWidth={2} />
+            </div>
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+              🛡️ Legal Proxy Requests
+            </h2>
+            { activeLegalProxies.length > 0 && (
+              <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                {activeLegalProxies.filter(p => !p.handled).length} pending
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-500 font-medium ml-9 mb-4">
+            FIR drafts forwarded by members. Act as their legal proxy to file with NCRP.
+          </p>
+
+          { activeLegalProxies.length === 0 ? (
+            <div className="
+              flex flex-col items-center justify-center gap-2 p-8
+              rounded-2xl
+              bg-slate-50/80 border border-slate-200/60
+              backdrop-blur-sm
+            ">
+              <Shield size={32} className="text-slate-300" strokeWidth={1.5} />
+              <p className="text-sm font-semibold text-slate-500">No proxy requests yet</p>
+              <p className="text-xs text-slate-400 text-center">
+                When a member forwards an AI-drafted FIR, it will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeLegalProxies.map(proxy => (
+                <LegalProxyCard
+                  key={proxy.id}
+                  proxy={proxy}
+                  onMarkHandled={markProxyHandled}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

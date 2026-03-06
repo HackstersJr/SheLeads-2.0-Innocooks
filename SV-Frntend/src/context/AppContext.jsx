@@ -322,6 +322,12 @@ export function AppProvider({ children }) {
      */
     const [disputeStatus, setDisputeStatus] = useState(null)
 
+    /**
+     * activeLegalProxies — FIR drafts forwarded by a member to their parent NGO.
+     * Each entry: { id, memberName, ngoName, threatType, firDraft, evidence, timestamp, handled }
+     */
+    const [activeLegalProxies, setActiveLegalProxies] = useState([])
+
     // ── Auth state ───────────────────────────────────────────────────────────────
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [userRole, setUserRole] = useState(null) // 'member' | 'ngo_admin'
@@ -594,6 +600,37 @@ export function AppProvider({ children }) {
     }, [])
 
     /**
+     * forwardFirToProxy — member forwards an AI-generated FIR draft to their NGO.
+     * Appends a new entry to activeLegalProxies so the NGO dashboard can display it.
+     *
+     * @param {object} firData    — { threatType, firDraft, evidence }
+     * @param {string} memberName — display name of the member
+     * @param {string} ngoName    — name of the parent NGO
+     */
+    const forwardFirToProxy = useCallback((firData, memberName = 'Member', ngoName = 'Partner NGO') => {
+        const entry = {
+            id: `fir_${Date.now()}`,
+            memberName,
+            ngoName,
+            threatType: firData?.threatType ?? 'Criminal Intimidation',
+            firDraft: firData?.firDraft ?? '',
+            evidence: firData?.evidence ?? null,
+            timestamp: new Date().toISOString(),
+            handled: false,
+        }
+        setActiveLegalProxies(prev => [entry, ...prev])
+    }, [])
+
+    /**
+     * markProxyHandled — NGO marks a proxy request as resolved.
+     */
+    const markProxyHandled = useCallback((id) => {
+        setActiveLegalProxies(prev =>
+            prev.map(p => p.id === id ? { ...p, handled: true } : p)
+        )
+    }, [])
+
+    /**
      * toggleRole — used by DemoGodMode to swap roles during a live pitch.
      */
     const toggleRole = useCallback(() => {
@@ -615,6 +652,7 @@ export function AppProvider({ children }) {
         memberStatus,
         hasPaidCurrentCycle,
         disputeStatus,
+        activeLegalProxies,
         chitCyclesCompleted,
         installmentsPaidThisCycle,
         currentUserUid,
@@ -637,6 +675,8 @@ export function AppProvider({ children }) {
         confirmDefaultLock,
         clearOverdueStatus,
         fileWhistleblowerDispute,
+        forwardFirToProxy,
+        markProxyHandled,
 
         // Auth actions
         login,
@@ -655,12 +695,13 @@ export function AppProvider({ children }) {
         INSTALLMENTS_PER_CYCLE,
         TRUST_PER_INSTALLMENT,
     }), [
-        lang, trustScore, memberStatus, hasPaidCurrentCycle, disputeStatus,
+        lang, trustScore, memberStatus, hasPaidCurrentCycle, disputeStatus, activeLegalProxies,
         chitCyclesCompleted, installmentsPaidThisCycle, currentUserUid, apiNotice,
         isSessionRestoring,
         isAuthenticated, userRole,
         toggleLang, recordInstallmentPaid, setTrustScoreManual, syncUserFromBackend, applyInstallmentResult, setApiNotice,
         triggerDefaultPenalty, grantGracePeriod, confirmDefaultLock, clearOverdueStatus, fileWhistleblowerDispute,
+        forwardFirToProxy, markProxyHandled,
         login, loginUser, logout, toggleRole,
         isP2PUnlocked, installmentsLeft, cycleProgress, t,
     ])

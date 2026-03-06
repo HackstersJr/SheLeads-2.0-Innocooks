@@ -14,7 +14,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, ShieldAlert, ShieldCheck, Mic, MicOff, ChevronDown, Image } from 'lucide-react'
+import { Send, ShieldAlert, ShieldCheck, Mic, MicOff, ChevronDown, Image, ShieldCheck as ShieldCheckIcon, Users } from 'lucide-react'
 import FirModal from '../components/FirModal'
 import PillTag from '../components/PillTag'
 import { useApp } from '../context/AppContext'
@@ -103,7 +103,7 @@ function ChatBubble({ msg }) {
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 export default function LegalChat() {
-    const { t, lang, currentUserUid } = useApp()
+    const { t, lang, currentUserUid, forwardFirToProxy } = useApp()
 
     const {
         isRecording,
@@ -120,6 +120,7 @@ export default function LegalChat() {
     const [firOpen, setFirOpen] = useState(false)
     const [lastIncident, setLastIncident] = useState('')
     const [showScrollBtn, setShowScroll] = useState(false)
+    const [firForwarded, setFirForwarded] = useState(false)
 
     const bottomRef = useRef(null)
     const scrollRef = useRef(null)
@@ -186,7 +187,21 @@ export default function LegalChat() {
 
     const handleReportThreat = () => {
         setFirOpen(true)
+        setFirForwarded(false) // reset forward state each time a new FIR is opened
     }
+
+    const handleForwardToProxy = useCallback(() => {
+        forwardFirToProxy(
+            {
+                threatType: 'Criminal Intimidation / Financial Coercion',
+                firDraft: lastIncident,
+                evidence: null,
+            },
+            'Member',        // memberName — real name available after auth wiring
+            'Partner NGO',   // ngoName — available from member profile
+        )
+        setFirForwarded(true)
+    }, [forwardFirToProxy, lastIncident])
 
     const handleThreatResult = useCallback((result, sourceMessage) => {
         const summary = result.is_threat_detected
@@ -254,6 +269,52 @@ export default function LegalChat() {
                     {t.reportThreat}
                 </button>
             </div>
+
+            {/* ── NGO Legal Proxy Forward Panel ── */}
+            {lastIncident && (
+                <div className="px-4 pt-2 flex-shrink-0">
+                    {firForwarded ? (
+                        <div className="
+                            flex items-center gap-2.5 px-4 py-3 rounded-2xl
+                            bg-emerald-50/90 border border-emerald-200/70
+                            backdrop-blur-sm
+                        ">
+                            <ShieldCheckIcon size={16} className="text-emerald-600 flex-shrink-0" strokeWidth={2.5} />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-emerald-700">FIR securely sent to your NGO.</span>
+                                <span className="text-[10px] text-emerald-600">Your NGO will act as your legal representative to file it on your behalf.</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="
+                            flex flex-col gap-1.5 px-4 py-3 rounded-2xl
+                            bg-rose-50/80 border border-rose-200/60
+                            backdrop-blur-sm
+                        ">
+                            <button
+                                onClick={handleForwardToProxy}
+                                className="
+                                    flex items-center justify-center gap-2
+                                    w-full py-2.5 rounded-xl
+                                    bg-gradient-to-r from-rose-500 to-crimson-600
+                                    text-white text-sm font-bold
+                                    shadow-[0_4px_14px_rgba(225,29,72,0.35)]
+                                    hover:shadow-[0_4px_20px_rgba(225,29,72,0.5)]
+                                    hover:scale-[1.02] active:scale-95
+                                    transition-all duration-200
+                                "
+                                aria-label="Forward AI-generated FIR to your NGO legal proxy"
+                            >
+                                <Users size={15} strokeWidth={2.5} />
+                                Forward to NGO Legal Proxy
+                            </button>
+                            <p className="text-[10px] text-rose-700 text-center leading-relaxed px-1">
+                                You do not have to go to the police alone. Your NGO will receive this FIR and act as your legal representative to file it on your behalf.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── Message Input ── */}
             <div className="px-4 pt-2.5 pb-3 flex-shrink-0">
