@@ -11,15 +11,11 @@ export default function ThreatReportPanel({ uid, onResult }) {
     const handleSubmit = async () => {
         const trimmed = message.trim()
         if (!trimmed) return
-        if (!uid) {
-            setError('Please complete registration first so your report is linked securely.')
-            return
-        }
 
         setError('')
         setLoading(true)
         try {
-            const response = await analyzeThreat({ uid, message_text: trimmed })
+            const response = await analyzeThreat({ uid: uid || 'anonymous', message_text: trimmed })
             setResult(response.data)
             if (onResult) {
                 onResult(response.data, trimmed)
