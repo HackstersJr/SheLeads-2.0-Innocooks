@@ -13,6 +13,9 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['shield.svg', 'icon-192.png', 'icon-512.png'],
+            devOptions: {
+                enabled: true,          // register SW in `npm run dev` too
+            },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
             },

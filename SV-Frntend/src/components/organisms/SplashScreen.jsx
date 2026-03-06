@@ -36,7 +36,7 @@ const letterVariants = {
   }),
 };
 
-// ── Logo mark SVG ─────────────────────────────────────────────────────────────
+// ── Logo mark — uses the actual app icon image ───────────────────────────────
 function LogoMark() {
   return (
     <motion.div
@@ -47,24 +47,16 @@ function LogoMark() {
     >
       {/* Glow ring */}
       <motion.div
-        className="absolute inset-0 rounded-full bg-emerald-400/25"
+        className="absolute inset-0 rounded-[28px] bg-emerald-400/25"
         animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0.0, 0.4] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />
-      <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/30">
-        {/* Stylised "S" monogram */}
-        <svg viewBox="0 0 40 40" className="w-10 h-10" fill="none" aria-hidden="true">
-          <path
-            d="M27 12C27 12 23 10 18 10C13 10 10 13 10 17C10 21 13 22 18 23C23 24 28 26 28 30C28 34 24 36 19 36C14 36 11 33 11 33"
-            stroke="white"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Rupee bar accent */}
-          <line x1="14" y1="15" x2="22" y2="15" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-        </svg>
-      </div>
+      <img
+        src="/icon-512.png"
+        alt="SheVest logo"
+        className="relative w-24 h-24 rounded-[28px] shadow-xl shadow-emerald-500/30"
+        draggable="false"
+      />
     </motion.div>
   );
 }

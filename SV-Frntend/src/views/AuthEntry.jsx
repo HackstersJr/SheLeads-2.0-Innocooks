@@ -109,9 +109,12 @@ export default function AuthEntry() {
                 className="relative z-10 flex flex-col items-center pt-14 pb-2 px-6"
             >
                 {/* Logo mark */}
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200 mb-5">
-                    <ShieldCheck size={32} className="text-white" strokeWidth={1.8} />
-                </div>
+                <img
+                    src="/icon-512.png"
+                    alt="SheVest"
+                    className="w-16 h-16 rounded-2xl shadow-lg shadow-emerald-200 mb-5"
+                    draggable="false"
+                />
 
                 <div className="flex items-center gap-2 mb-2">
                     <span className="text-2xl font-extrabold text-emerald-950 tracking-tight font-sans">

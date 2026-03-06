@@ -85,17 +85,14 @@ export default function B2BHeader() {
 
                 {/* ── LEFT — SheVest brand mark ── */}
                 <div className="flex items-center gap-2">
-                    {/* Shield icon */}
-                    <span
-                        className="
-              w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0
-              bg-gradient-to-br from-brand-500 to-brand-700
-              shadow-[0_4px_12px_rgba(16,185,129,0.35)]
-            "
+                    {/* App icon */}
+                    <img
+                        src="/icon-512.png"
+                        alt="SheVest"
+                        className="w-8 h-8 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.35)] flex-shrink-0"
+                        draggable="false"
                         aria-hidden="true"
-                    >
-                        <ShieldCheck size={17} strokeWidth={2.5} className="text-white" />
-                    </span>
+                    />
 
                     {/* Wordmark */}
                     <div className="flex flex-col leading-none">

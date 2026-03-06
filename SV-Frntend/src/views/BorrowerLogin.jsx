@@ -711,12 +711,12 @@ export default function BorrowerLogin() {
                     transition={{ duration: 0.45, ease: 'easeOut' }}
                     className="flex flex-col items-center mb-6"
                 >
-                    <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200 mb-4">
-                        {mode === 'register'
-                            ? <UserPlus size={28} className="text-white" strokeWidth={1.8} />
-                            : <Phone size={28} className="text-white" strokeWidth={1.8} />
-                        }
-                    </div>
+                    <img
+                        src="/icon-512.png"
+                        alt="SheVest"
+                        className="w-16 h-16 rounded-2xl shadow-lg shadow-emerald-200 mb-4"
+                        draggable="false"
+                    />
                     <h1 className="text-2xl font-extrabold text-emerald-950 font-sans tracking-tight">
                         {mode === 'register' ? 'Create Your Account' : 'Member Login'}
                     </h1>
