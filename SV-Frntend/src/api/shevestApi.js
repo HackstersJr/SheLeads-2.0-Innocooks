@@ -184,21 +184,42 @@ export async function analyzeThreat(chatData) {
         message_text: chatData.message_text,
     }
 
-    const preferred = await fetch(`${API_BASE}/legal/analyze-threat`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-    })
+    try {
+        const preferred = await fetch(`${API_BASE}/legal/analyze-threat`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(payload),
+        })
 
-    if (preferred.status !== 404) {
-        return parseResponse(preferred)
+        if (preferred.status !== 404) {
+            return parseResponse(preferred)
+        }
+
+        return await requestJson(`${API_BASE}/legal/scan-threat`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(payload),
+        })
+    } catch (err) {
+        if (isDemoError(err)) {
+            // Demo fallback — backend offline
+            const text = (chatData.message_text || '').toLowerCase()
+            const isTheat = /kill|hurt|threat|beat|money|pay|else|dare|warn/i.test(text)
+            return {
+                success: true,
+                data: {
+                    is_threat_detected: isTheat,
+                    bns_section: isTheat ? 'BNS § 351 — Criminal Intimidation' : null,
+                    draft_fir_text: isTheat
+                        ? `DEMO FIR DRAFT\nComplainant received the following threatening message:\n"${chatData.message_text}"\nThis constitutes criminal intimidation under BNS § 351. Immediate police intervention is requested.`
+                        : null,
+                    threat_category: isTheat ? 'criminal_intimidation' : 'none',
+                    confidence_score: isTheat ? 0.87 : 0.05,
+                },
+            }
+        }
+        throw err
     }
-
-    return requestJson(`${API_BASE}/legal/scan-threat`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-    })
 }
 
 export { API_BASE }
