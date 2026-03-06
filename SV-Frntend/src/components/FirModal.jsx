@@ -228,11 +228,11 @@ function FirDraft({ t, content, onDownload }) {
 }
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
-export default function FirModal({ isOpen, onClose, incident, lang = 'EN' }) {
+export default function FirModal({ isOpen, onClose, incident, lang = 'en' }) {
     const [phase, setPhase] = useState('loading')
     const timerRef = useRef(null)
-    const tMap = lang === 'HI' ? T.HI : T.EN
-    const firContent = FIR_CONTENT[lang] ?? FIR_CONTENT.EN
+    const tMap = T[lang?.toLowerCase()] ?? T.en
+    const firContent = FIR_CONTENT[lang?.toUpperCase()] ?? FIR_CONTENT.EN
 
     // Reset phase every time modal opens and start 3s timer
     useEffect(() => {
