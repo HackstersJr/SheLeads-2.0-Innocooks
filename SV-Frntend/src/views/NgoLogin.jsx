@@ -38,6 +38,8 @@ import {
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { sendOtp, verifyOtp, ngoLogin } from '../api/shevestApi'
+import NgoSelect from '../components/atoms/NgoSelect'
+import LegalConsentModal from '../components/organisms/LegalConsentModal'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const OTP_LENGTH = 6
@@ -276,7 +278,11 @@ function ResendTimer({ onResend }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // LOGIN PANEL — Phone + 6-digit OTP
 // ═══════════════════════════════════════════════════════════════════════════════
-function LoginPanel({ onSuccess }) {
+// LOGIN PANEL — Phone + 6-digit OTP
+// onRequestSend: consent-gated callback that actually fires sendOtp()
+// onLoginUser:   direct loginUser call (no consent re-gate needed)
+// ═══════════════════════════════════════════════════════════════════════════════
+function LoginPanel({ onRequestSend, onLoginUser }) {
     const [step,      setStep]      = useState('phone')   // 'phone' | 'otp'
     const [phone,     setPhone]     = useState('')
     const [otp,       setOtp]       = useState('')
@@ -287,7 +293,8 @@ function LoginPanel({ onSuccess }) {
     const isValidPhone = /^[6-9]\d{9}$/.test(phone)
     const isOtpDone    = otp.replace(/\s/g, '').length === OTP_LENGTH
 
-    const handleSendOtp = async () => {
+    // Actual OTP-send logic — called AFTER consent is accepted
+    const handleSendOtpActual = async () => {
         setError(''); setLoading(true)
         try {
             const res = await sendOtp(phone)
@@ -301,13 +308,17 @@ function LoginPanel({ onSuccess }) {
         }
     }
 
+    // Gate consent before sending OTP (same pattern as MemberAuth)
+    const handleSendOtp = () => onRequestSend(handleSendOtpActual)
+
+    // Call loginUser directly — consent was already accepted at OTP-send stage
     const handleVerify = async () => {
         if (!isOtpDone) { setError(`Please enter all ${OTP_LENGTH} digits.`); return }
         setError(''); setLoading(true)
         try {
             const res = await verifyOtp(phone, otp)
             const uid = res?.data?.uid ?? 'ngo_admin_demo'
-            onSuccess({ uid, role: 'ngo_admin', phone, isNewUser: false })
+            onLoginUser({ uid, role: 'ngo_admin', phone, isNewUser: false })
         } catch {
             setError('Incorrect OTP. Please check and try again.')
         } finally {
@@ -413,7 +424,7 @@ function LoginPanel({ onSuccess }) {
 // REGISTER NGO PANEL — Full KYC onboarding (no password)
 // ═══════════════════════════════════════════════════════════════════════════════
 function RegisterPanel({ onSuccess }) {
-    const [form,    setForm]    = useState({ phone: '', email: '', aadhaar: '', license: '' })
+    const [form,    setForm]    = useState({ phone: '', email: '', aadhaar: '', license: '', parentOrg: '' })
     const [loading, setLoading] = useState(false)
     const [error,   setError]   = useState('')
 
@@ -427,6 +438,7 @@ function RegisterPanel({ onSuccess }) {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address.'
         if (aadhaar.length !== 12)                  return 'Aadhaar must be exactly 12 digits.'
         if (!license.trim())                        return 'NGO License Number is required.'
+        if (!form.parentOrg)                           return 'Please select your parent organisation.'
         return null
     }
 
@@ -502,6 +514,12 @@ function RegisterPanel({ onSuccess }) {
                 />
             </Field>
 
+            <NgoSelect
+                label="Parent Organisation"
+                value={form.parentOrg}
+                onChange={val => setForm(f => ({ ...f, parentOrg: val }))}
+            />
+
             {error && <p className="text-xs text-rose-500 font-sans text-center">{error}</p>}
 
             <motion.button
@@ -534,17 +552,42 @@ export default function NgoLogin() {
 
     const [mode, setMode] = useState('login')   // 'login' | 'register'
 
+    // ── Legal consent gate ─────────────────────────────────────────────────────────
+    const [showConsent,     setShowConsent]     = useState(false)
+    const [pendingAction,   setPendingAction]   = useState(null)
+    const [consentAccepted, setConsentAccepted] = useState(false)
+
+    const requireConsent = useCallback((action) => {
+        if (consentAccepted) { action(); return }
+        setPendingAction(() => action)
+        setShowConsent(true)
+    }, [consentAccepted])
+
+    const handleConsentAccept = useCallback(() => {
+        setConsentAccepted(true)
+        setShowConsent(false)
+        if (pendingAction) { pendingAction(); setPendingAction(null) }
+    }, [pendingAction])
+
     const handleSuccess = useCallback(payload => {
         loginUser('ngo_admin', { ...payload, isNewUser: payload.isNewUser ?? false })
-        // Navigation handled by App.jsx RoleNavigator → /ngo
+        // Navigation handled by App.jsx RoleNavigator → /ngo-dashboard
     }, [loginUser])
 
     return (
         <div
-            className="relative min-h-screen w-full max-w-md mx-auto flex flex-col overflow-hidden"
-            style={{ background: 'linear-gradient(160deg, #f9f6f0 0%, #fefce8 55%, #ecfdf5 100%)' }}
+            className="auth-bg-ngo relative min-h-screen w-full max-w-md mx-auto flex flex-col overflow-hidden"
         >
             <AmbientBlobs />
+
+            {/* ── Legal consent modal (z-[100]) ── */}
+            {showConsent && (
+                <LegalConsentModal
+                    role="ngo_admin"
+                    onAccept={handleConsentAccept}
+                    onClose={() => setShowConsent(false)}
+                />
+            )}
 
             {/* ── Back button ── */}
             <motion.button
@@ -602,7 +645,10 @@ export default function NgoLogin() {
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.25 }}
                             >
-                                <LoginPanel onSuccess={handleSuccess} />
+                                <LoginPanel
+                                onRequestSend={requireConsent}
+                                onLoginUser={handleSuccess}
+                            />
                             </motion.div>
                         ) : (
                             <motion.div
@@ -612,7 +658,7 @@ export default function NgoLogin() {
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.25 }}
                             >
-                                <RegisterPanel onSuccess={handleSuccess} />
+                                <RegisterPanel onSuccess={(p) => requireConsent(() => handleSuccess(p))} />
                             </motion.div>
                         )}
                     </AnimatePresence>

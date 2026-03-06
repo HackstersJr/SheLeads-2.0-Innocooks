@@ -43,6 +43,13 @@ async function parseResponse(response) {
     return body
 }
 
+// ─── Demo-mode helpers (fires when backend is unreachable) ───────────────────
+function isDemoError(err) {
+    return err instanceof TypeError               // fetch failed (offline / CORS)
+        || /connection issue/i.test(err.message)  // our own message
+        || /fetch/i.test(err.message)
+}
+
 async function requestJson(url, options) {
     try {
         const response = await fetch(url, options)
@@ -56,32 +63,75 @@ async function requestJson(url, options) {
 }
 
 export async function sendOtp(phone) {
-    return requestJson(`${API_BASE}/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-    })
+    try {
+        return await requestJson(`${API_BASE}/auth/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone }),
+        })
+    } catch (err) {
+        if (isDemoError(err)) {
+            // Demo fallback — backend offline
+            return { success: true, data: { demo_otp: '123456' } }
+        }
+        throw err
+    }
 }
 
 export async function verifyOtp(phone, otp) {
-    const result = await requestJson(`${API_BASE}/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, otp }),
-    })
-    // Persist token immediately so all subsequent calls are authorised
-    if (result?.data?.access_token) saveToken(result.data.access_token)
-    return result
+    try {
+        const result = await requestJson(`${API_BASE}/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, otp }),
+        })
+        if (result?.data?.access_token) saveToken(result.data.access_token)
+        return result
+    } catch (err) {
+        if (isDemoError(err)) {
+            // Demo fallback — accept any 6-digit OTP
+            if (/^\d{6}$/.test(otp)) {
+                const demoToken = `demo-token-${Date.now()}`
+                saveToken(demoToken)
+                return {
+                    success: true,
+                    data: {
+                        uid: `member_demo_${phone.slice(-4)}`,
+                        chit_cycles_completed: 2,
+                        access_token: demoToken,
+                    },
+                }
+            }
+            throw new Error('Enter the 6-digit OTP shown on screen.')
+        }
+        throw err
+    }
 }
 
 export async function ngoLogin(payload) {
-    const result = await requestJson(`${API_BASE}/auth/ngo-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    })
-    if (result?.data?.access_token) saveToken(result.data.access_token)
-    return result
+    try {
+        const result = await requestJson(`${API_BASE}/auth/ngo-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        })
+        if (result?.data?.access_token) saveToken(result.data.access_token)
+        return result
+    } catch (err) {
+        if (isDemoError(err)) {
+            const demoToken = `demo-ngo-token-${Date.now()}`
+            saveToken(demoToken)
+            return {
+                success: true,
+                data: {
+                    uid: `ngo_demo_${Date.now()}`,
+                    org_name: payload?.org_name || 'Demo NGO',
+                    access_token: demoToken,
+                },
+            }
+        }
+        throw err
+    }
 }
 
 export async function registerUser(payload) {

@@ -26,12 +26,12 @@ export default function GlassCard({
     <Tag
       onClick={onClick}
       className={[
-        // ── Core glass tokens (NEVER modify these per design rules) ──────────
+        // ── Core glass tokens ────────────────────────────────────────────────
         'bg-white/60',
         'backdrop-blur-xl',
         'border border-white/40',
         'shadow-lg',
-        // ── Shape & typography defaults ────────────────────────────────────
+        // ── Shape & typography defaults ──────────────────────────────────────────────────────
         'rounded-2xl',
         'font-sans text-stone-800',
         // ── Layout ────────────────────────────────────────────────────────

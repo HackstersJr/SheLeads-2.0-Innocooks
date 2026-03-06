@@ -14,11 +14,12 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, ShieldAlert, ShieldCheck, Mic, ChevronDown, Image } from 'lucide-react'
+import { Send, ShieldAlert, ShieldCheck, Mic, MicOff, ChevronDown, Image } from 'lucide-react'
 import FirModal from '../components/FirModal'
 import PillTag from '../components/PillTag'
 import { useApp } from '../context/AppContext'
 import ThreatReportPanel from '../components/ThreatReportPanel'
+import useVoiceInput from '../hooks/useVoiceInput'
 
 // ─── Initial AI greeting messages ────────────────────────────────────────────
 const getInitialMessages = (t) => [
@@ -104,6 +105,15 @@ function ChatBubble({ msg }) {
 export default function LegalChat() {
     const { t, lang, currentUserUid } = useApp()
 
+    const {
+        isRecording,
+        isTranscribing,
+        transcript,
+        error: voiceError,
+        startRecording,
+        stopRecording,
+    } = useVoiceInput(lang)
+
     const [messages, setMessages] = useState(() => getInitialMessages(t))
     const [input, setInput] = useState('')
     const [isTyping, setIsTyping] = useState(false)
@@ -114,6 +124,22 @@ export default function LegalChat() {
     const bottomRef = useRef(null)
     const scrollRef = useRef(null)
     const inputRef = useRef(null)
+
+    // Auto-populate input when transcript arrives
+    useEffect(() => {
+        if (transcript) {
+            setInput(prev => (prev ? prev + ' ' : '') + transcript)
+            inputRef.current?.focus()
+        }
+    }, [transcript])
+
+    // Show voice errors as a brief notice in the chat
+    useEffect(() => {
+        if (voiceError) {
+            const errMsg = { id: `e-${Date.now()}`, role: 'ai', text: `⚠️ ${voiceError}`, time: now() }
+            setMessages(prev => [...prev, errMsg])
+        }
+    }, [voiceError])
 
     // Auto-scroll to bottom on new message
     useEffect(() => {
@@ -262,15 +288,21 @@ export default function LegalChat() {
 
                     {/* Mic button */}
                     <button
-                        className="
-              w-11 h-11 flex-shrink-0 rounded-2xl
-              glass-card flex items-center justify-center
-              text-stone-400 hover:text-brand-600
-              hover:shadow-trust transition-all duration-200
-            "
-                        aria-label="Voice input"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        disabled={isTranscribing}
+                        className={[
+                            'w-11 h-11 flex-shrink-0 rounded-2xl',
+                            'glass-card flex items-center justify-center',
+                            'transition-all duration-200',
+                            'disabled:opacity-40 disabled:cursor-not-allowed',
+                            isRecording
+                                ? 'text-rose-500 ring-2 ring-rose-500 animate-pulse hover:text-rose-600'
+                                : 'text-stone-400 hover:text-brand-600 hover:shadow-trust',
+                        ].join(' ')}
+                        aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+                        aria-pressed={isRecording}
                     >
-                        <Mic size={18} />
+                        {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
                     </button>
 
                     {/* Text area */}

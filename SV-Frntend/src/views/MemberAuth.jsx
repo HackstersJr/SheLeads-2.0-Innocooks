@@ -1,15 +1,16 @@
 /**
- * views/BorrowerLogin.jsx
+ * views/MemberAuth.jsx
  * ─────────────────────────────────────────────────────────────────────────────
- * AGENT 1 — Borrower Login Portal
+ * AGENT 1 — Member Login Portal  (replaces BorrowerLogin, role: 'member')
  *
  * Two-state mobile-first frosted-glass card:
  *   State 1 — Phone number entry (+91) → Emerald "Send OTP"
- *   State 2 — 4-digit OTP input        → "Verify & Secure Login"
+ *   State 2 — 6-digit OTP input        → "Verify & Secure Login"
  *
- * On successful OTP verification: calls loginUser('borrower', payload) from
- * AppContext (wired in Agent 3). Falls back to legacy login(role) if
- * loginUser is not yet present, ensuring Agent 1 works standalone.
+ * Register panel collects ONLY: Phone, Aadhaar, UPI ID.
+ * NGO-affiliation fields are strictly confined to NgoAuth / Community Vouch.
+ *
+ * On successful OTP verification: calls loginUser('member', payload).
  *
  * Design: Soft 3D Glassmorphism. bg-stone-50, emerald accents.
  * No pure black anywhere. Mobile-first (max-w-md).
@@ -33,7 +34,7 @@ import {
     UserPlus,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import NgoSelect from '../components/atoms/NgoSelect'
+import LegalConsentModal from '../components/organisms/LegalConsentModal'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const RESEND_COOLDOWN_SECONDS = 30
@@ -58,7 +59,7 @@ function MethodToggle({ mode, onChange }) {
                     >
                         {active && (
                             <motion.div
-                                layoutId="borrower-tab-bg"
+                                layoutId="member-tab-bg"
                                 className="absolute inset-0 bg-emerald-500 rounded-xl shadow-md"
                                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                             />
@@ -97,7 +98,7 @@ function AmbientBlobs() {
     )
 }
 
-// ─── 4-digit OTP box input ────────────────────────────────────────────────────
+// ─── 6-digit OTP box input ────────────────────────────────────────────────────
 function OtpInput({ value, onChange, disabled }) {
     const inputs = useRef([])
     const OTP_LENGTH = 6
@@ -124,7 +125,6 @@ function OtpInput({ value, onChange, disabled }) {
         }
     }
 
-    // Auto-focus first box on mount
     useEffect(() => {
         inputs.current[0]?.focus()
     }, [])
@@ -220,13 +220,10 @@ function PhoneStep({ phone, setPhone, onSendOtp, loading, error }) {
             transition={{ duration: 0.32, ease: 'easeOut' }}
         >
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-                {/* Label */}
                 <div>
                     <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
                         Mobile Number
                     </label>
-
-                    {/* Phone input with country code badge */}
                     <div
                         className={[
                             'flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden',
@@ -236,12 +233,10 @@ function PhoneStep({ phone, setPhone, onSendOtp, loading, error }) {
                                 : 'border-stone-200 focus-within:border-emerald-400',
                         ].join(' ')}
                     >
-                        {/* +91 badge */}
                         <div className="flex items-center gap-1.5 px-3 py-3.5 border-r border-stone-200 bg-stone-50/80">
                             <span className="text-base">🇮🇳</span>
                             <span className="text-sm font-semibold text-stone-600 font-sans">+91</span>
                         </div>
-
                         <input
                             type="tel"
                             inputMode="numeric"
@@ -257,23 +252,19 @@ function PhoneStep({ phone, setPhone, onSendOtp, loading, error }) {
                                 'focus:outline-none focus:ring-0',
                             ].join(' ')}
                         />
-
                         {isValid && (
                             <CheckCircle2 size={18} className="text-emerald-400 mr-3 shrink-0" />
                         )}
                     </div>
-
                     {error && (
                         <p className="text-xs text-rose-500 font-sans mt-1.5 pl-1">{error}</p>
                     )}
                 </div>
 
-                {/* Helper text */}
                 <p className="text-xs text-stone-400 font-sans -mt-2">
                     We'll send a 6-digit OTP to verify your number. Standard SMS rates apply.
                 </p>
 
-                {/* CTA */}
                 <motion.button
                     type="submit"
                     disabled={!isValid || loading}
@@ -322,7 +313,6 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
             transition={{ duration: 0.32, ease: 'easeOut' }}
         >
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
-                {/* Info banner */}
                 <div className="rounded-2xl bg-emerald-50/80 border border-emerald-200/60 px-4 py-3">
                     <p className="text-sm font-sans text-emerald-800 leading-snug">
                         OTP sent to{' '}
@@ -338,7 +328,6 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
                     )}
                 </div>
 
-                {/* OTP boxes */}
                 <div className="flex flex-col gap-3">
                     <label className="text-sm font-semibold text-stone-600 font-sans text-center">
                         Enter 6-digit OTP
@@ -349,10 +338,8 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
                     )}
                 </div>
 
-                {/* Resend */}
                 <ResendTimer onResend={onResend} />
 
-                {/* Verify CTA */}
                 <motion.button
                     type="submit"
                     disabled={!isComplete || loading}
@@ -379,7 +366,6 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
                     )}
                 </motion.button>
 
-                {/* Back link */}
                 <button
                     type="button"
                     onClick={onBack}
@@ -395,7 +381,6 @@ function OtpStep({ phone, otp, setOtp, onVerify, onBack, onResend, loading, erro
 
 // ─── Aadhaar input — formatted XXXX XXXX XXXX ────────────────────────────────
 function AadhaarInput({ value, onChange }) {
-    // value = raw 12 digits; display as "XXXX XXXX XXXX"
     const handleChange = useCallback((e) => {
         const raw = e.target.value.replace(/\D/g, '').slice(0, 12)
         onChange(raw)
@@ -471,15 +456,14 @@ function UpiInput({ value, onChange }) {
     )
 }
 
-// ─── Register panel ───────────────────────────────────────────────────────────
+// ─── Register panel — Member only: Phone · Aadhaar · UPI ─────────────────────
+// NgoSelect is intentionally ABSENT. NGO affiliation is collected in NgoAuth
+// and the "Request Community Vouch" modal only.
 function RegisterPanel({ phone, setPhone, aadhaar, setAadhaar, upiId, setUpiId, loading, error, success, onSubmit }) {
-    const [shg, setShg] = useState('')
-
     const allValid =
         /^[6-9]\d{9}$/.test(phone) &&
         aadhaar.length === 12 &&
-        /^[\w.]+@[\w]+$/.test(upiId.trim()) &&
-        !!shg
+        /^[\w.]+@[\w]+$/.test(upiId.trim())
 
     if (success) {
         return (
@@ -512,7 +496,7 @@ function RegisterPanel({ phone, setPhone, aadhaar, setAadhaar, upiId, setUpiId, 
             <div className="flex items-start gap-2 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/60">
                 <ShieldCheck size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-emerald-800 font-sans leading-relaxed">
-                    <strong>Why we ask:</strong> Aadhaar & UPI verify your identity, enable our
+                    <strong>Why we ask:</strong> Aadhaar &amp; UPI verify your identity, enable our
                     anti-fraud UPI name-match, and lock your escrow disbursement to your account only.
                 </p>
             </div>
@@ -549,13 +533,6 @@ function RegisterPanel({ phone, setPhone, aadhaar, setAadhaar, upiId, setUpiId, 
             {/* UPI */}
             <UpiInput value={upiId} onChange={setUpiId} />
 
-            {/* SHG / NGO affiliation */}
-            <NgoSelect
-                label="Affiliated SHG / NGO"
-                value={shg}
-                onChange={setShg}
-            />
-
             {/* Error */}
             {error && (
                 <p className="text-xs text-rose-500 font-sans text-center">{error}</p>
@@ -586,16 +563,32 @@ function RegisterPanel({ phone, setPhone, aadhaar, setAadhaar, upiId, setUpiId, 
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
-export default function BorrowerLogin() {
+export default function MemberAuth() {
     const navigate  = useNavigate()
     const appCtx    = useApp()
     const loginUser = appCtx.loginUser ?? ((role) => appCtx.login(role))
 
-    // ── Mode: 'login' | 'register' ───────────────────────────────────────────
     const [mode,     setMode]     = useState('login')
 
+    // ── Legal consent gate —————————————————————————————————————————
+    const [showConsent,     setShowConsent]     = useState(false)
+    const [pendingAction,   setPendingAction]   = useState(null)  // fn to call after accept
+    const [consentAccepted, setConsentAccepted] = useState(false)
+
+    const requireConsent = useCallback((action) => {
+        if (consentAccepted) { action(); return }
+        setPendingAction(() => action)
+        setShowConsent(true)
+    }, [consentAccepted])
+
+    const handleConsentAccept = useCallback(() => {
+        setConsentAccepted(true)
+        setShowConsent(false)
+        if (pendingAction) { pendingAction(); setPendingAction(null) }
+    }, [pendingAction])
+
     // ── Login sub-state ──────────────────────────────────────────────────────
-    const [step,     setStep]     = useState('phone')  // 'phone' | 'otp'
+    const [step,     setStep]     = useState('phone')
     const [phone,    setPhone]    = useState('')
     const [otp,      setOtp]      = useState('')
     const [loading,  setLoading]  = useState(false)
@@ -604,13 +597,12 @@ export default function BorrowerLogin() {
 
     // ── Register sub-state ───────────────────────────────────────────────────
     const [regPhone,   setRegPhone]   = useState('')
-    const [aadhaar,    setAadhaar]    = useState('')   // raw 12 digits
+    const [aadhaar,    setAadhaar]    = useState('')
     const [upiId,      setUpiId]      = useState('')
     const [regLoading, setRegLoading] = useState(false)
     const [regError,   setRegError]   = useState('')
     const [regSuccess, setRegSuccess] = useState(false)
 
-    // Reset sub-state when toggling mode
     const handleModeChange = useCallback((m) => {
         setMode(m)
         setError('')
@@ -620,7 +612,7 @@ export default function BorrowerLogin() {
     }, [])
 
     // ── Login handlers ───────────────────────────────────────────────────────
-    const handleSendOtp = async () => {
+    const handleSendOtpActual = async () => {
         setError('')
         setLoading(true)
         try {
@@ -634,6 +626,8 @@ export default function BorrowerLogin() {
         }
     }
 
+    const handleSendOtp = () => requireConsent(handleSendOtpActual)
+
     const handleVerify = async () => {
         setError('')
         if (otp.replace(/\s/g, '').length < 6) { setError('Please enter all 6 digits.'); return }
@@ -641,7 +635,7 @@ export default function BorrowerLogin() {
         try {
             const res = await verifyOtp(phone, otp.replace(/\s/g, ''))
             const { uid, chit_cycles_completed } = res?.data ?? {}
-            loginUser('borrower', { phone, uid, isNewUser: !chit_cycles_completed })
+            loginUser('member', { phone, uid, isNewUser: !chit_cycles_completed })
         } catch (err) {
             setError(err.message || 'Incorrect code. Please try again.')
         } finally {
@@ -663,24 +657,23 @@ export default function BorrowerLogin() {
     }
 
     // ── Register handler ─────────────────────────────────────────────────────
-    const handleRegister = useCallback(async () => {
+    const handleRegisterActual = useCallback(async () => {
         setRegError('')
-        const cleanPhone = regPhone.trim()
+        const cleanPhone   = regPhone.trim()
         const cleanAadhaar = aadhaar.replace(/\s/g, '')
-        const cleanUpi = upiId.trim()
+        const cleanUpi     = upiId.trim()
 
-        if (!/^[6-9]\d{9}$/.test(cleanPhone)) { setRegError('Enter a valid 10-digit mobile number.'); return }
-        if (cleanAadhaar.length !== 12) { setRegError('Aadhaar must be exactly 12 digits.'); return }
-        if (!/^[\w.]+@[\w]+$/.test(cleanUpi)) { setRegError('Enter a valid UPI ID (e.g. name@ybl).'); return }
+        if (!/^[6-9]\d{9}$/.test(cleanPhone))         { setRegError('Enter a valid 10-digit mobile number.'); return }
+        if (cleanAadhaar.length !== 12)                { setRegError('Aadhaar must be exactly 12 digits.'); return }
+        if (!/^[\w.]+@[\w]+$/.test(cleanUpi))          { setRegError('Enter a valid UPI ID (e.g. name@ybl).'); return }
 
         setRegLoading(true)
         try {
-            // Demo: skip real API, create user locally
             setRegSuccess(true)
             setTimeout(() => {
-                loginUser('borrower', {
+                loginUser('member', {
                     phone: cleanPhone,
-                    uid: `borrower_${Date.now()}`,
+                    uid: `member_${Date.now()}`,
                     isNewUser: true,
                     aadhaar_last4: cleanAadhaar.slice(-4),
                     upi_id: cleanUpi,
@@ -693,11 +686,22 @@ export default function BorrowerLogin() {
         }
     }, [regPhone, aadhaar, upiId, loginUser])
 
+    const handleRegister = useCallback(() => requireConsent(handleRegisterActual), [requireConsent, handleRegisterActual])
+
     return (
         <div
             className="auth-bg relative min-h-screen w-full max-w-md mx-auto flex flex-col overflow-hidden"
         >
             <AmbientBlobs />
+
+            {/* ── Legal consent modal (z-[100]) ── */}
+            {showConsent && (
+                <LegalConsentModal
+                    role="member"
+                    onAccept={handleConsentAccept}
+                    onClose={() => setShowConsent(false)}
+                />
+            )}
 
             {/* ── Back to role selection ── */}
             <motion.button
@@ -812,7 +816,6 @@ export default function BorrowerLogin() {
                         Your data is encrypted and never shared with lenders
                     </span>
                 </motion.div>
-
 
             </div>
         </div>

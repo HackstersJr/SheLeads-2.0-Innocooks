@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Coins, Users, Trophy, Clock, CheckCircle2,
     ArrowRight, Sparkles, TrendingUp, AlertCircle, RotateCcw,
+    AlertTriangle, ShieldX, Clock3, PhoneCall, Flag,
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import PillTag from '../components/PillTag'
@@ -201,6 +202,165 @@ function CountdownTimer({ t }) {
     )
 }
 
+// ─── Overdue / Grace / Locked / Disputed Warning Card ───────────────────────
+function OverdueWarningCard({ status, t, onWhistleblow, disputeStatus }) {
+    const [confirmOpen, setConfirmOpen] = useState(false)
+
+    if (status === 'active') return null
+
+    const config = {
+        overdue: {
+            bg: 'bg-rose-50/90 border-rose-200/70',
+            strip: 'bg-gradient-to-r from-rose-400 to-rose-600',
+            icon: <AlertTriangle size={18} className="text-rose-600 flex-shrink-0 mt-0.5" />,
+            pillBg: 'bg-rose-100 text-rose-700',
+            pillLabel: 'Payment Overdue',
+            heading: 'Your installment is overdue',
+            body: 'Your trust score has been reduced by 50 points and P2P Marketplace access is suspended. Contact your NGO coordinator to resolve this.',
+            urgency: 'bg-rose-100/80 border-rose-200/60 text-rose-800',
+            urgencyIcon: <PhoneCall size={12} className="text-rose-600 flex-shrink-0" />,
+            urgencyText: 'Call your SheLeads coordinator immediately to avoid account lock.',
+        },
+        grace_period: {
+            bg: 'bg-amber-50/90 border-amber-200/70',
+            strip: 'bg-gradient-to-r from-amber-400 to-orange-500',
+            icon: <Clock3 size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />,
+            pillBg: 'bg-amber-100 text-amber-700',
+            pillLabel: '7-Day Grace Period',
+            heading: 'Grace period approved',
+            body: 'Your NGO coordinator has granted you a 7-day grace window to clear your overdue installment. Your trust score has been partially restored (+25 pts).',
+            urgency: 'bg-amber-100/80 border-amber-200/60 text-amber-800',
+            urgencyIcon: <Clock3 size={12} className="text-amber-600 flex-shrink-0" />,
+            urgencyText: 'Pay before your grace window expires to restore full standing.',
+        },
+        locked: {
+            bg: 'bg-rose-100/90 border-rose-300/70',
+            strip: 'bg-gradient-to-r from-rose-600 to-rose-900',
+            icon: <ShieldX size={18} className="text-rose-700 flex-shrink-0 mt-0.5" />,
+            pillBg: 'bg-rose-200 text-rose-800',
+            pillLabel: 'Account Locked',
+            heading: 'Account locked by NGO',
+            body: 'Your account has been locked following a confirmed default. All chit participation and P2P access is suspended pending manual review.',
+            urgency: 'bg-rose-200/80 border-rose-300/60 text-rose-900',
+            urgencyIcon: <PhoneCall size={12} className="text-rose-700 flex-shrink-0" />,
+            urgencyText: 'Contact your SheLeads coordinator to initiate account reinstatement.',
+        },
+        disputed: {
+            bg: 'bg-amber-50/90 border-amber-300/70',
+            strip: 'bg-gradient-to-r from-amber-400 to-amber-600',
+            icon: <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />,
+            pillBg: 'bg-amber-200 text-amber-800',
+            pillLabel: 'Under Central Review',
+            heading: 'Account Under Central Review',
+            body: 'Your whistleblower dispute has been filed with the SheVest Central Audit Team. Your account is protected from lock actions while the investigation is ongoing.',
+            urgency: 'bg-amber-100/80 border-amber-200/60 text-amber-800',
+            urgencyIcon: <ShieldX size={12} className="text-amber-600 flex-shrink-0" />,
+            urgencyText: 'You will be notified once the audit is complete. No further action required.',
+        },
+    }
+
+    // If a whistleblower dispute is active, always show the protected amber state
+    const effectiveStatus = disputeStatus === 'under_investigation' ? 'disputed' : status
+    const c = config[effectiveStatus]
+    if (!c) return null
+
+    const showWhistleblowerBtn =
+        (status === 'overdue' || status === 'locked') &&
+        disputeStatus !== 'under_investigation'
+
+    return (
+        <>
+            <div
+                className={`rounded-3xl border overflow-hidden shadow-md fade-in ${c.bg}`}
+                role="alert"
+                aria-live="polite"
+            >
+                {/* Colour strip */}
+                <div className={`h-1 w-full ${c.strip}`} />
+
+                <div className="px-4 pt-3 pb-4">
+                    {/* Header row */}
+                    <div className="flex items-start gap-2 mb-2">
+                        {c.icon}
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${c.pillBg}`}>
+                                    {c.pillLabel}
+                                </span>
+                            </div>
+                            <p className="text-sm font-bold text-stone-800 mt-1">{c.heading}</p>
+                            <p className="text-[11px] text-stone-600 font-medium mt-0.5 leading-relaxed">{c.body}</p>
+                        </div>
+                    </div>
+
+                    {/* Urgency strip */}
+                    <div className={`flex items-start gap-2 px-3 py-2 rounded-xl border mt-2 ${c.urgency}`}>
+                        {c.urgencyIcon}
+                        <p className="text-[11px] font-semibold leading-relaxed">{c.urgencyText}</p>
+                    </div>
+
+                    {/* Whistleblower ghost button */}
+                    {showWhistleblowerBtn && (
+                        <button
+                            type="button"
+                            className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-stone-200/70 text-[11px] font-bold text-stone-500 hover:bg-white/60 hover:border-amber-300 hover:text-amber-700 transition-colors"
+                            onClick={() => setConfirmOpen(true)}
+                        >
+                            <Flag size={12} aria-hidden="true" />
+                            Lodge Whistleblower Dispute
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Whistleblower confirmation modal */}
+            {confirmOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-stone-900/30 backdrop-blur-sm"
+                    onClick={() => setConfirmOpen(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="whistle-title"
+                >
+                    <div
+                        className="bg-white/90 backdrop-blur-xl border border-amber-200/60 rounded-2xl shadow-xl p-5 max-w-sm w-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-amber-100 p-1.5 rounded-lg border border-amber-200/50">
+                                <Flag size={16} className="text-amber-600" aria-hidden="true" />
+                            </div>
+                            <h3 id="whistle-title" className="text-sm font-bold text-stone-800">Lodge Whistleblower Dispute</h3>
+                        </div>
+                        <p className="text-[11px] text-stone-600 leading-relaxed mb-4">
+                            This will escalate your case to the{' '}
+                            <strong className="text-stone-800">SheVest Central Audit Team</strong>.
+                            Your account will be protected from any lock actions during the investigation.
+                            This action is permanent and logged for governance oversight.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmOpen(false)}
+                                className="flex-1 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-500 hover:bg-stone-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { onWhistleblow(); setConfirmOpen(false) }}
+                                className="flex-1 py-2 rounded-xl bg-amber-500 text-xs font-bold text-white hover:bg-amber-600 transition-colors"
+                            >
+                                Escalate to Central Audit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    )
+}
+
 // ─── Main View ────────────────────────────────────────────────────────────────
 export default function ChitHub() {
     const {
@@ -208,6 +368,7 @@ export default function ChitHub() {
         installmentsPaidThisCycle, cycleProgress, currentUserUid,
         installmentsLeft, setApiNotice, recordInstallmentPaid,
         INSTALLMENTS_PER_CYCLE, syncUserFromBackend,
+        memberStatus, fileWhistleblowerDispute, disputeStatus, hasPaidCurrentCycle,
     } = useApp()
 
     const [payState, setPayState] = useState('idle') // 'idle' | 'loading' | 'success'
@@ -271,6 +432,14 @@ export default function ChitHub() {
                         </span>
                     </div>
                 </div>
+
+                {/* ── OVERDUE / GRACE / LOCKED WARNING ── */}
+                <OverdueWarningCard
+                    status={memberStatus}
+                    t={t}
+                    onWhistleblow={fileWhistleblowerDispute}
+                    disputeStatus={disputeStatus}
+                />
 
                 {/* ── HERO — Active Chit Pool ── */}
                 <GlassCard variant="trust" padding="p-0" className="overflow-hidden fade-in">

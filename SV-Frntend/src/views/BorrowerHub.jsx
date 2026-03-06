@@ -198,7 +198,7 @@ function P2PTeaser({ trustScore }) {
               <Wallet size={16} className="text-amber-600" strokeWidth={2} aria-hidden="true" />
             </div>
             <div>
-              <p className="text-xs font-bold text-stone-700">Locked — {80 - trustScore} pts needed</p>
+              <p className="text-xs font-bold text-stone-700">Locked — {Math.max(0, 80 - (trustScore || 0))} pts needed</p>
               <p className="text-[11px] text-stone-400">Complete more Chit cycles to unlock</p>
             </div>
           </motion.div>

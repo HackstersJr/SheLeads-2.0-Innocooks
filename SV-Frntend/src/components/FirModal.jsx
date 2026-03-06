@@ -19,7 +19,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { T } from '../context/AppContext'
+import { T } from '../context/translations'
 import {
     ShieldAlert, X, Download, AlertTriangle,
     CheckCircle2, Scale, Fingerprint, FileText,

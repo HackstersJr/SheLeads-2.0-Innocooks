@@ -6,10 +6,10 @@
  *   Phase 1 — SplashScreen      (2.5 s, AnimatePresence exit)
  *   Phase 2 — Multi-Role Auth   (!isAuthenticated)
  *               /auth             → AuthEntry   (role selection)
- *               /auth/borrower    → BorrowerLogin
+ *               /auth/member      → MemberAuth
  *               /auth/ngo         → NgoLogin
  *   Phase 3 — Authenticated shell
- *               Borrower  → /borrower-hub
+ *               Member    → /member-hub
  *               NGO admin → /ngo-dashboard
  *
  * DemoGodMode is injected globally in Phase 3 (always visible during pitches).
@@ -37,7 +37,8 @@ const Login          = lazy(() => import('./views/Login'))
 
 // ─── Auth views (multi-role flow) ────────────────────────────────────────────
 const AuthEntry      = lazy(() => import('./views/AuthEntry'))
-const BorrowerLogin  = lazy(() => import('./views/BorrowerLogin'))
+const MemberAuth     = lazy(() => import('./views/MemberAuth'))
+const BorrowerLogin  = lazy(() => import('./views/BorrowerLogin')) // legacy alias
 const NgoLogin       = lazy(() => import('./views/NgoLogin'))
 
 // ─── Page loading skeleton ────────────────────────────────────────────────────
@@ -72,7 +73,8 @@ function RoleNavigator() {
         // Only navigate when the role value itself changes, not on every render
         if (userRole === prevRoleRef.current) return
         prevRoleRef.current = userRole
-        if (userRole === 'borrower')   navigate('/borrower-hub',    { replace: true })
+        if (userRole === 'member')     navigate('/member-hub',      { replace: true })
+        if (userRole === 'borrower')   navigate('/member-hub',      { replace: true }) // legacy
         if (userRole === 'ngo_admin')  navigate('/ngo-dashboard',   { replace: true })
     }, [userRole, navigate])
 
@@ -82,7 +84,7 @@ function RoleNavigator() {
 // ─── Phase 3: Authenticated app shell ────────────────────────────────────────
 function AuthenticatedApp() {
     const { userRole } = useApp()
-    const defaultPath = userRole === 'ngo_admin' ? '/ngo-dashboard' : '/borrower-hub'
+    const defaultPath = userRole === 'ngo_admin' ? '/ngo-dashboard' : '/member-hub'
 
     return (
         <motion.div
@@ -109,7 +111,8 @@ function AuthenticatedApp() {
                         <Route path="/"               element={<Navigate to={defaultPath} replace />} />
 
                         {/* Primary role views — canonical post-login URLs */}
-                        <Route path="/borrower-hub"   element={<BorrowerHub />} />
+                        <Route path="/member-hub"      element={<BorrowerHub />} />
+                        <Route path="/borrower-hub"    element={<Navigate to="/member-hub" replace />} />
                         <Route path="/ngo-dashboard"  element={<NgoDashboard />} />
 
                         {/* Core feature views (accessible from both roles via nav) */}
@@ -118,7 +121,7 @@ function AuthenticatedApp() {
                         <Route path="/legal"          element={<LegalChat />} />
 
                         {/* Legacy aliases — preserved for backward compat */}
-                        <Route path="/borrower"       element={<Navigate to="/borrower-hub"   replace />} />
+                        <Route path="/borrower"       element={<Navigate to="/member-hub"     replace />} />
                         <Route path="/ngo"            element={<Navigate to="/ngo-dashboard"  replace />} />
                         <Route path="/dashboard"      element={<Navigate to={defaultPath}     replace />} />
                         <Route path="/market"         element={<Navigate to="/p2p"            replace />} />
@@ -146,7 +149,7 @@ function AuthenticatedApp() {
 
 // ─── Phase 2: Multi-role auth flow ───────────────────────────────────────────
 // Renders its own <Routes> so the browser URL updates as the user moves
-// through AuthEntry → BorrowerLogin / NgoLogin, giving each step a back-able
+// through AuthEntry → MemberAuth / NgoLogin, giving each step a back-able
 // URL. A wildcard catch-all redirects any unrecognised path to /auth so
 // unauthenticated deep-links always land on the role-selection screen.
 function AuthPhase() {
@@ -159,10 +162,11 @@ function AuthPhase() {
             transition={{ duration: 0.4, ease: 'easeOut' }}
             className="w-full"
         >
-            <Suspense fallback={<div className="min-h-screen bg-stone-50" />}>
+                <Suspense fallback={<div className="min-h-screen bg-stone-50" />}>
                 <Routes>
                     <Route path="/auth"          element={<AuthEntry />} />
-                    <Route path="/auth/borrower" element={<BorrowerLogin />} />
+                    <Route path="/auth/member"   element={<MemberAuth />} />
+                    <Route path="/auth/borrower" element={<Navigate to="/auth/member" replace />} />
                     <Route path="/auth/ngo"      element={<NgoLogin />} />
 
                     {/* Legacy single-login screen — still reachable */}

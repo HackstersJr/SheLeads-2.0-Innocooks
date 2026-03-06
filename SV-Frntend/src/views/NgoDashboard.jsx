@@ -19,6 +19,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useApp } from '../context/AppContext';
 import {
   Users,
   ShieldCheck,
@@ -31,6 +32,12 @@ import {
   UserCheck,
   Building2,
   Handshake,
+  ShieldX,
+  Clock3,
+  TrendingDown,
+  PhoneCall,
+  Unlock,
+  TriangleAlert,
 } from 'lucide-react';
 import GlassCard    from '../components/atoms/GlassCard';
 import PillTag      from '../components/atoms/PillTag';
@@ -98,6 +105,43 @@ const STATS = [
   { label: 'Active Chits',value: 6,  icon: Users,        color: 'text-stone-600'  },
 ];
 
+// ── Mock at-risk / overdue members ─────────────────────────────────────────
+const INITIAL_RISK_MEMBERS = [
+  {
+    id: 'r1',
+    name: 'Lakshmi Bai',
+    city: 'Nagpur',
+    chitGroup: 'Nagpur Weavers Pool',
+    trustScore: 38,
+    status: 'overdue',   // 'overdue' | 'grace_period' | 'locked' | 'active'
+    daysOverdue: 12,
+    installmentAmt: 5000,
+    phone: '+91 97600 23456',
+  },
+  {
+    id: 'r2',
+    name: 'Pushpa Reddy',
+    city: 'Hyderabad',
+    chitGroup: 'Hyderabad Artisans',
+    trustScore: 55,
+    status: 'grace_period',
+    daysOverdue: 5,
+    installmentAmt: 5000,
+    phone: '+91 93300 11223',
+  },
+  {
+    id: 'r3',
+    name: 'Champa Devi',
+    city: 'Lucknow',
+    chitGroup: 'Lucknow Tailors Circle',
+    trustScore: 22,
+    status: 'overdue',
+    daysOverdue: 21,
+    installmentAmt: 5000,
+    phone: '+91 88100 44556',
+  },
+];
+
 // ── Mock vouch requests ───────────────────────────────────────────────────────
 const INITIAL_VOUCH_REQUESTS = [
   {
@@ -110,6 +154,199 @@ const INITIAL_VOUCH_REQUESTS = [
     chitGroup: 'Jaipur Artisans Circle',
   },
 ];
+
+// ── Risk member status helpers ───────────────────────────────────────────────
+const STATUS_CONFIG = {
+  overdue: {
+    borderColor: 'border-l-rose-400',
+    pillType:    'danger',
+    pillLabel:   'Overdue',
+    icon:        (s) => <AlertTriangle size={s || 14} className="text-rose-500" strokeWidth={2} />,
+    badgeBg:     'bg-rose-100 text-rose-700',
+  },
+  grace_period: {
+    borderColor: 'border-l-amber-400',
+    pillType:    'warning',
+    pillLabel:   '7-Day Grace',
+    icon:        (s) => <Clock3 size={s || 14} className="text-amber-500" strokeWidth={2} />,
+    badgeBg:     'bg-amber-100 text-amber-700',
+  },
+  locked: {
+    borderColor: 'border-l-rose-700',
+    pillType:    'danger',
+    pillLabel:   'Locked',
+    icon:        (s) => <ShieldX size={s || 14} className="text-rose-700" strokeWidth={2} />,
+    badgeBg:     'bg-rose-200 text-rose-900',
+  },
+  active: {
+    borderColor: 'border-l-emerald-400',
+    pillType:    'success',
+    pillLabel:   'Resolved',
+    icon:        (s) => <CheckCircle2 size={s || 14} className="text-emerald-500" strokeWidth={2} />,
+    badgeBg:     'bg-emerald-100 text-emerald-700',
+  },
+};
+
+// ── Risk member expandable row ───────────────────────────────────────────────
+function RiskMemberRow({ member, onGrantGrace, onConfirmDefault, onClearOverdue, actionId, hasPaidCurrentCycle, disputeStatus }) {
+  const [expanded, setExpanded] = useState(false);
+  const cfg = STATUS_CONFIG[member.status] || STATUS_CONFIG.active;
+  const isActing = actionId === member.id;
+
+  return (
+    <GlassCard
+      padding="p-0"
+      className={`overflow-hidden border-l-4 ${cfg.borderColor}`}
+    >
+      {/* ─ Collapsed header ─ */}
+      <button
+        type="button"
+        className="w-full flex items-center gap-3 p-4 text-left"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        {/* Coloured avatar */}
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-100 to-rose-300 flex items-center justify-center flex-shrink-0">
+          <span className="text-sm font-bold text-rose-900">{member.name.charAt(0)}</span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm font-semibold text-stone-800">{member.name}</p>
+            {cfg.icon(12)}
+          </div>
+          <p className="text-xs text-stone-500 truncate">{member.city} · {member.chitGroup}</p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cfg.badgeBg}`}>
+            {cfg.pillLabel}
+          </span>
+          <ChevronRight
+            size={16}
+            className={`text-stone-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+            aria-hidden="true"
+          />
+        </div>
+      </button>
+
+      {/* ─ Expanded panel ─ */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 border-t border-white/40 pt-3 space-y-3">
+              {/* Details grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  ['Phone',        member.phone],
+                  ['Days Overdue', `${member.daysOverdue} days`],
+                  ['Trust Score',  member.trustScore],
+                  ['Installment',  `₹${member.installmentAmt.toLocaleString('en-IN')}/mo`],
+                ].map(([k, v]) => (
+                  <div key={k} className="bg-stone-50/60 rounded-lg p-2">
+                    <p className="text-stone-400 font-medium mb-0.5">{k}</p>
+                    <p className="text-stone-700 font-semibold">{v}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Status-specific actions */}
+              {member.status === 'overdue' && (
+                <div className="flex flex-col gap-2">
+                  <ActionButton
+                    variant="ghost"
+                    className="w-full justify-center text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                    isLoading={isActing}
+                    onClick={() => onGrantGrace(member.id)}
+                  >
+                    <Clock3 size={14} strokeWidth={2} aria-hidden="true" />
+                    Approve 7-Day Grace Period
+                  </ActionButton>
+                  {hasPaidCurrentCycle || disputeStatus === 'under_investigation' ? (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed select-none">
+                        <ShieldX size={14} aria-hidden="true" /> 🔒 Escrow Verified: Member is Current
+                      </div>
+                      <p className="text-[10px] text-center text-stone-400 font-medium px-1">
+                        Escrow proof confirms this member's installment cleared. Lock action disabled until next billing cycle.
+                      </p>
+                    </div>
+                  ) : (
+                    <ActionButton
+                      variant="ghost"
+                      className="w-full justify-center text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
+                      isLoading={isActing}
+                      onClick={() => onConfirmDefault(member.id)}
+                    >
+                      <ShieldX size={14} strokeWidth={2} aria-hidden="true" />
+                      Confirm Default &amp; Lock Account
+                    </ActionButton>
+                  )}
+                </div>
+              )}
+
+              {member.status === 'grace_period' && (
+                <div className="flex flex-col gap-2">
+                  <ActionButton
+                    variant="emerald"
+                    className="w-full justify-center text-xs"
+                    isLoading={isActing}
+                    onClick={() => onClearOverdue(member.id)}
+                  >
+                    <CheckCircle2 size={14} strokeWidth={2} aria-hidden="true" />
+                    Mark as Resolved
+                  </ActionButton>
+                  {hasPaidCurrentCycle || disputeStatus === 'under_investigation' ? (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed select-none">
+                        <ShieldX size={14} aria-hidden="true" /> 🔒 Escrow Verified: Member is Current
+                      </div>
+                      <p className="text-[10px] text-center text-stone-400 font-medium px-1">
+                        Escrow proof confirms this member's installment cleared. Lock action disabled until next billing cycle.
+                      </p>
+                    </div>
+                  ) : (
+                    <ActionButton
+                      variant="ghost"
+                      className="w-full justify-center text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
+                      isLoading={isActing}
+                      onClick={() => onConfirmDefault(member.id)}
+                    >
+                      <ShieldX size={14} strokeWidth={2} aria-hidden="true" />
+                      Confirm Default &amp; Lock Account
+                    </ActionButton>
+                  )}
+                </div>
+              )}
+
+              {member.status === 'locked' && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50/80 border border-rose-200/60">
+                  <PhoneCall size={13} className="text-rose-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-[11px] text-rose-700 font-medium leading-relaxed">
+                    Account locked. Contact your regional SheLeads coordinator to initiate reinstatement review.
+                  </p>
+                </div>
+              )}
+
+              {member.status === 'active' && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50/80 border border-emerald-200/60">
+                  <CheckCircle2 size={13} className="text-emerald-600 flex-shrink-0" />
+                  <p className="text-[11px] text-emerald-700 font-semibold">Overdue resolved — account in good standing.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </GlassCard>
+  );
+}
 
 // ── Vouch request row ─────────────────────────────────────────────────────────
 function VouchRequestRow({ req, onApprove, approving }) {
@@ -326,12 +563,55 @@ function KycUserRow({ user, onApproveKyc, onOverrideDevice, approving, overridin
 
 // ── View ──────────────────────────────────────────────────────────────────────
 export default function NgoDashboard() {
+  const { hasPaidCurrentCycle, disputeStatus } = useApp();
   const [users, setUsers]               = useState(MOCK_PENDING_USERS);
   const [approvingId, setApprovingId]   = useState(null);
   const [overrideTarget, setOverrideTarget] = useState(null); // user object
   const [overridingId, setOverridingId] = useState(null);
   const [vouchRequests, setVouchRequests] = useState(INITIAL_VOUCH_REQUESTS);
   const [approvingVouchId, setApprovingVouchId] = useState(null);
+  const [riskMembers, setRiskMembers]   = useState(INITIAL_RISK_MEMBERS);
+  const [riskActionId, setRiskActionId] = useState(null);
+
+  // ── Risk management handlers ───────────────────────────────────────────────
+  const handleGrantGrace = async (memberId) => {
+    setRiskActionId(memberId);
+    await new Promise((r) => setTimeout(r, 1200));
+    setRiskMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? { ...m, status: 'grace_period', trustScore: Math.min(100, m.trustScore + 25) }
+          : m
+      )
+    );
+    setRiskActionId(null);
+  };
+
+  const handleConfirmDefault = async (memberId) => {
+    setRiskActionId(memberId);
+    await new Promise((r) => setTimeout(r, 1400));
+    setRiskMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? { ...m, status: 'locked', trustScore: 0 }
+          : m
+      )
+    );
+    setRiskActionId(null);
+  };
+
+  const handleClearOverdue = async (memberId) => {
+    setRiskActionId(memberId);
+    await new Promise((r) => setTimeout(r, 1000));
+    setRiskMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? { ...m, status: 'active', daysOverdue: 0 }
+          : m
+      )
+    );
+    setRiskActionId(null);
+  };
 
   // ── Vouch approval ───────────────────────────────────────────────────────
   const handleApproveVouch = async (reqId) => {
@@ -364,9 +644,9 @@ export default function NgoDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans">
+    <div className="h-full overflow-y-auto overscroll-contain bg-stone-50 font-sans">
       {/* ── Page wrapper (mobile-first) ─────────────────────────────────── */}
-      <div className="max-w-md mx-auto min-h-screen flex flex-col px-4 pb-24">
+      <div className="max-w-md mx-auto flex flex-col px-4 pb-24">
 
         {/* ── Top bar ───────────────────────────────────────────────────── */}
         <div className="pt-12 pb-6">
@@ -446,6 +726,55 @@ export default function NgoDashboard() {
             ))}
           </div>
         )}
+
+        {/* ── RISK & DEFAULT MANAGEMENT ─────────────────────────────── */}
+        <div className="mt-8 mb-3">
+          {/* Section header */}
+          <div className="flex items-center gap-2 mb-1">
+            <div className="bg-rose-100/80 p-1.5 rounded-xl border border-rose-200/50">
+              <TriangleAlert size={15} className="text-rose-600" strokeWidth={2} />
+            </div>
+            <h2 className="text-sm font-bold text-stone-700 uppercase tracking-wide">
+              Risk &amp; Default Management
+            </h2>
+            <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+              {riskMembers.filter((m) => m.status === 'overdue' || m.status === 'grace_period').length} at risk
+            </span>
+          </div>
+          <p className="text-[11px] text-stone-500 font-medium ml-9 mb-4">
+            Manage overdue installments, approve grace periods, or confirm defaults.
+          </p>
+
+          {/* Summary chips */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {[
+              { label: 'Overdue',      count: riskMembers.filter((m) => m.status === 'overdue').length,      bg: 'bg-rose-100 text-rose-700' },
+              { label: 'Grace Period', count: riskMembers.filter((m) => m.status === 'grace_period').length, bg: 'bg-amber-100 text-amber-700' },
+              { label: 'Locked',       count: riskMembers.filter((m) => m.status === 'locked').length,       bg: 'bg-rose-200 text-rose-900' },
+              { label: 'Resolved',     count: riskMembers.filter((m) => m.status === 'active').length,       bg: 'bg-emerald-100 text-emerald-700' },
+            ].map(({ label, count, bg }) => (
+              <span key={label} className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${bg}`}>
+                {count} {label}
+              </span>
+            ))}
+          </div>
+
+          {/* Risk member rows */}
+          <div className="space-y-3">
+            {riskMembers.map((member) => (
+              <RiskMemberRow
+                key={member.id}
+                member={member}
+                onGrantGrace={handleGrantGrace}
+                onConfirmDefault={handleConfirmDefault}
+                onClearOverdue={handleClearOverdue}
+                actionId={riskActionId}
+                hasPaidCurrentCycle={hasPaidCurrentCycle}
+                disputeStatus={disputeStatus}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Device Override Sheet ──────────────────────────────────────── */}

@@ -31,7 +31,7 @@
   --color-ivory-100: #F5F5EE;
   --color-ivory-200: #EEEDE3;
 
-  /* Glass */
+  /* Glass — light mode */
   --glass-bg: rgba(255, 255, 255, 0.60);
   --glass-border: rgba(255, 255, 255, 0.40);
   --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
@@ -41,6 +41,7 @@
   --transition-base: 0.2s ease;
   --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 
 /* ─── Base Reset & Typography ────────────────────────────────────────────── */
 @layer base {
@@ -112,6 +113,14 @@
     background: rgba(16, 185, 129, 0.20);
     color: var(--color-brand-800, #065F46);
   }
+}
+
+/* ─── Auth page backgrounds ─────────────────────────────────────────────── */
+.auth-bg {
+    background: linear-gradient(160deg, #f9f6f0 0%, #ecfdf5 60%, #fefce8 100%);
+}
+.auth-bg-ngo {
+    background: linear-gradient(160deg, #f9f6f0 0%, #fefce8 55%, #ecfdf5 100%);
 }
 
 /* ─── Component Utilities ────────────────────────────────────────────────── */
@@ -215,6 +224,7 @@
       0 -4px 24px 0 rgba(31, 38, 135, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.80);
   }
+
 
   /* ══════════════════════════════════════════════
      PILL TAGS
@@ -331,6 +341,7 @@
   .chat-bubble-ai {
     @apply glass-card rounded-3xl rounded-bl-md px-4 py-3 text-sm text-stone-700 max-w-[82%];
   }
+
 
   /* ══════════════════════════════════════════════
      LOADING / SHIMMER

@@ -156,7 +156,7 @@ export default function DemoGodMode() {
               <ScorePips score={trustScore} />
               {!isUnlocked && (
                 <p className="text-[9px] text-amber-600 mt-1.5 font-medium">
-                  {80 - trustScore} pts to unlock P2P
+                  {Math.max(0, 80 - (trustScore || 0))} pts to unlock P2P
                 </p>
               )}
               {isUnlocked && (
@@ -171,7 +171,7 @@ export default function DemoGodMode() {
               <GodButton
                 icon={TrendingUp}
                 label="+20 Trust"
-                sublabel={trustScore >= 100 ? 'Max' : `→ ${Math.min(100, trustScore + 20)}`}
+                sublabel={trustScore >= 100 ? 'Max' : `→ ${Math.min(100, (trustScore || 0) + 20)}`}
                 onClick={handleBump}
                 colorClass="text-emerald-700"
                 bgClass="bg-emerald-50/80 hover:bg-emerald-100/80 border-emerald-200/60"

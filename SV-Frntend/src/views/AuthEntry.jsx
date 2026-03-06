@@ -5,7 +5,7 @@
  *
  * The first screen a user sees after the splash. Presents two large, tactile
  * glassmorphism cards to route the user to the correct login portal:
- *   · Borrower  → /auth/borrower
+ *   · Member    → /auth/member
  *   · NGO Admin → /auth/ngo
  *
  * Design: Soft 3D Glassmorphism (bg-stone-50, emerald/amber accents).
@@ -96,8 +96,7 @@ export default function AuthEntry() {
 
     return (
         <div
-            className="relative min-h-screen w-full max-w-md mx-auto flex flex-col overflow-hidden"
-            style={{ background: 'linear-gradient(160deg, #f9f6f0 0%, #ecfdf5 60%, #fefce8 100%)' }}
+            className="auth-bg relative min-h-screen w-full max-w-md mx-auto flex flex-col overflow-hidden"
         >
             <AmbientBlobs />
 
@@ -148,12 +147,12 @@ export default function AuthEntry() {
             <div className="relative z-10 flex flex-col gap-4 px-6 pb-10">
                 <RoleCard
                     icon={Users}
-                    title="I am a Member (Borrower)"
+                    title="I am a Member"
                     subtitle="Join a Chit Pool, build your Trust Score, and access micro-loans on your own terms."
                     badge="Most Popular"
                     accentClass="bg-emerald-100 text-emerald-600"
                     borderClass="border-emerald-200/60 hover:border-emerald-300/80"
-                    onClick={() => navigate('/auth/borrower')}
+                    onClick={() => navigate('/auth/member')}
                     delay={0.3}
                 />
 

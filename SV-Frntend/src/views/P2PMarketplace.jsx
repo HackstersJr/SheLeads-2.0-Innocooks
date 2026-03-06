@@ -1,11 +1,10 @@
 /**
  * views/P2PMarketplace.jsx
  * ─────────────────────────────────────────────────────────────────────────────
- * AGENT 4 — "Borrow & Grow" View
+ * AGENT 3 — Dual-Sided Marketplace (Invest & Lend ↔ Apply for Credit)
  *
- * Logic:
- *   trustScore < 80  → frosted .lock-overlay + Lock icon (framer-motion fade-in)
- *   trustScore >= 80 → framer-motion staggered reveal of verified P2P loans
+ * Lock logic:  trustScore < 80  → lock overlay blurs BOTH tabs
+ *              trustScore >= 80 → toggle switch unlocks dual-sided view
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -16,13 +15,14 @@ import {
     Lock, ShieldCheck, TrendingUp, Star,
     Clock, Percent, IndianRupee, ChevronRight, Sparkles,
     Users, Loader2, Building2, MapPin, CreditCard,
+    Send, ChevronDown, UserCheck,
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import PillTag from '../components/PillTag'
 import { useApp, P2P_TRUST_GATE } from '../context/AppContext'
 import { getLoanMarket } from '../api/shevestApi'
 
-// ─── Loan Data ────────────────────────────────────────────────────────────────
+// ─── Loan Data — Invest & Lend view ─────────────────────────────────────────
 const LOANS = [
     {
         id: 'L001',
@@ -30,12 +30,17 @@ const LOANS = [
         avatar: 'PS',
         location: 'Jaipur, RJ',
         amount: 8000,
+        funded: 5200,
         purpose: 'Sewing machine for tailoring business',
         rate: '7.5% p.a.',
         tenure: '6 months',
         trustMatch: 94,
         verified: true,
         tag: 'trust',
+        backedBy: [
+            { label: 'Verified by SEWA', type: 'ngo' },
+            { label: 'Co-funded by Kavita D.', type: 'member' },
+        ],
     },
     {
         id: 'L002',
@@ -43,12 +48,18 @@ const LOANS = [
         avatar: 'RD',
         location: 'Lucknow, UP',
         amount: 12000,
+        funded: 3000,
         purpose: 'School fees for 2 children',
         rate: '8.0% p.a.',
         tenure: '9 months',
         trustMatch: 88,
         verified: true,
         tag: 'trust',
+        backedBy: [
+            { label: 'Verified by Kudumbashree', type: 'ngo' },
+            { label: 'Co-funded by Sunita M.', type: 'member' },
+            { label: 'Co-funded by Meera R.', type: 'member' },
+        ],
     },
     {
         id: 'L003',
@@ -56,12 +67,17 @@ const LOANS = [
         avatar: 'SK',
         location: 'Patna, BR',
         amount: 5000,
+        funded: 4500,
         purpose: 'Seeds & fertilizers for kharif crop',
         rate: '6.5% p.a.',
         tenure: '4 months',
         trustMatch: 91,
         verified: true,
         tag: 'trust',
+        backedBy: [
+            { label: 'Verified by SSP', type: 'ngo' },
+            { label: 'Co-funded by Anita B.', type: 'member' },
+        ],
     },
     {
         id: 'L004',
@@ -69,22 +85,35 @@ const LOANS = [
         avatar: 'KB',
         location: 'Indore, MP',
         amount: 15000,
+        funded: 6200,
         purpose: 'Expand roadside food stall',
         rate: '9.0% p.a.',
         tenure: '12 months',
         trustMatch: 82,
         verified: true,
         tag: 'amber',
+        backedBy: [
+            { label: "Verified by Working Women's Forum", type: 'ngo' },
+            { label: 'Co-funded by Priya T.', type: 'member' },
+        ],
     },
+]
+
+// ─── Apply for Credit — Purpose options ──────────────────────────────────────
+const CREDIT_PURPOSES = [
+    { value: '',            label: 'Select purpose…' },
+    { value: 'Inventory',   label: '🛍️ Inventory & Stock' },
+    { value: 'Emergency',   label: '🚑 Emergency Need' },
+    { value: 'Education',   label: '📚 Education & Skill' },
 ]
 
 // ─── Nearby NGO Lenders (borrower view) ─────────────────────────────────────
 const NGO_LENDERS = [
     {
         id: 'N001',
-        name: 'GramSeva Foundation',
-        avatar: 'GS',
-        location: 'Pune, MH · 8 km away',
+        name: 'SEWA',
+        avatar: 'SE',
+        location: 'Ahmedabad, GJ · 8 km away',
         maxLoan: 25000,
         interest: '1.5% p.a.',
         tenure: 'Up to 18 months',
@@ -94,9 +123,9 @@ const NGO_LENDERS = [
     },
     {
         id: 'N002',
-        name: 'Saheli Saksham Trust',
-        avatar: 'SS',
-        location: 'Nagpur, MH · 12 km away',
+        name: 'Kudumbashree',
+        avatar: 'KD',
+        location: 'Kochi, KL · 12 km away',
         maxLoan: 15000,
         interest: '1.8% p.a.',
         tenure: 'Up to 12 months',
@@ -106,8 +135,8 @@ const NGO_LENDERS = [
     },
     {
         id: 'N003',
-        name: 'Shakti Vikas NGO',
-        avatar: 'SV',
+        name: 'Swayam Shikshan Prayog (SSP)',
+        avatar: 'SP',
         location: 'Jalgaon, MH · 34 km away',
         maxLoan: 10000,
         interest: '2.0% p.a.',
@@ -118,9 +147,9 @@ const NGO_LENDERS = [
     },
     {
         id: 'N004',
-        name: 'Umang Rural Finance',
-        avatar: 'UR',
-        location: 'Nashik, MH · 58 km away',
+        name: "Working Women's Forum",
+        avatar: 'WW',
+        location: 'Chennai, TN · 58 km away',
         maxLoan: 50000,
         interest: '1.2% p.a.',
         tenure: 'Up to 24 months',
@@ -479,6 +508,27 @@ function LoanCard({ loan, t }) {
                                 )}
                             </div>
                             <p className="text-xs text-stone-400 mt-0.5">{loan.location}</p>
+                            {loan.backedBy && loan.backedBy.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {loan.backedBy.map(b => (
+                                        <span
+                                            key={b.label}
+                                            className={[
+                                                'inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full',
+                                                b.type === 'ngo'
+                                                    ? 'bg-amber-100/80 text-amber-700'
+                                                    : 'bg-emerald-100/80 text-emerald-700',
+                                            ].join(' ')}
+                                        >
+                                            {b.type === 'ngo'
+                                                ? <Building2 size={8} className="shrink-0" />
+                                                : <UserCheck size={8} className="shrink-0" />
+                                            }
+                                            {b.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-end flex-shrink-0">
@@ -495,6 +545,24 @@ function LoanCard({ loan, t }) {
                         {loan.purpose}
                     </p>
                 </div>
+
+                {/* Funding progress bar */}
+                {loan.funded != null && (
+                    <div className="px-4 pt-1 pb-2">
+                        <div className="flex justify-between text-[10px] text-stone-500 mb-1">
+                            <span>Funded</span>
+                            <span className="font-semibold text-emerald-700">
+                                ₹{loan.funded.toLocaleString('en-IN')} / ₹{loan.amount.toLocaleString('en-IN')}
+                            </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-stone-100">
+                            <div
+                                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
+                                style={{ width: `${Math.round((loan.funded / loan.amount) * 100)}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* Stats row */}
                 <div
@@ -602,51 +670,264 @@ function NgoMarketplace({ t, loans }) {
     )
 }
 
-// ─── Borrower Credit Marketplace ─────────────────────────────────────────────
-function BorrowerMarketplace({ t }) {
+// ─── Dual-mode toggle ─────────────────────────────────────────────────────────
+function MarketToggle({ mode, onChange }) {
+    const tabs = [
+        { id: 'invest', label: 'Invest & Lend' },
+        { id: 'apply',  label: 'Apply for Credit' },
+    ]
+    return (
+        <div className="flex bg-stone-100/80 rounded-2xl p-1 gap-1 shadow-inner" role="tablist">
+            {tabs.map(({ id, label }) => {
+                const active = mode === id
+                return (
+                    <button
+                        key={id}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => onChange(id)}
+                        className="relative flex-1 py-2.5 text-xs font-semibold font-sans rounded-xl transition-all duration-200"
+                    >
+                        {active && (
+                            <motion.div
+                                layoutId="market-tab-bg"
+                                className="absolute inset-0 bg-emerald-500 rounded-xl shadow-md"
+                                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                            />
+                        )}
+                        <span className={`relative z-10 transition-colors ${
+                            active ? 'text-white' : 'text-stone-500 hover:text-stone-700'
+                        }`}>
+                            {label}
+                        </span>
+                    </button>
+                )
+            })}
+        </div>
+    )
+}
+
+// ─── Apply for Credit panel ───────────────────────────────────────────────────
+function ApplyCreditPanel() {
+    const [amount,    setAmount]    = useState('')
+    const [purpose,   setPurpose]   = useState('')
+    const [submitted, setSubmitted] = useState(false)
+
+    const isValid = Number(amount) >= 500 && !!purpose
+
+    if (submitted) {
+        return (
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-4 py-10"
+            >
+                <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200">
+                    <ShieldCheck size={32} className="text-white" strokeWidth={2} />
+                </div>
+                <div className="text-center">
+                    <p className="text-base font-extrabold text-emerald-900">Request Submitted!</p>
+                    <p className="text-xs text-stone-500 mt-1 leading-relaxed max-w-[260px] mx-auto">
+                        Your application for{' '}
+                        <span className="font-bold text-emerald-700">₹{Number(amount).toLocaleString('en-IN')}</span>{' '}
+                        has been broadcast to the SheVest network. You'll hear back within 24 hours.
+                    </p>
+                </div>
+                <button
+                    onClick={() => { setSubmitted(false); setAmount(''); setPurpose('') }}
+                    className="text-xs font-semibold text-emerald-700 underline underline-offset-2"
+                >
+                    Submit another request
+                </button>
+            </motion.div>
+        )
+    }
+
     return (
         <motion.div
-            key="borrower-unlocked"
+            key="apply-panel"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.28 }}
+            className="flex flex-col gap-4"
+        >
+            {/* Helper notice */}
+            <div className="flex items-start gap-2 rounded-2xl bg-emerald-50/80 border border-emerald-200/60 px-3 py-2.5">
+                <Sparkles size={13} className="text-emerald-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-emerald-800 font-sans leading-relaxed">
+                    Your request is matched to verified Members and NGO partners with available capital.
+                    Minimum ₹500 — up to ₹50,000 based on your Trust Score.
+                </p>
+            </div>
+
+            {/* Amount */}
+            <div>
+                <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
+                    Amount Needed (₹)
+                </label>
+                <div className={[
+                    'flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden transition-colors duration-150',
+                    Number(amount) >= 500 ? 'border-emerald-400' : 'border-stone-200 focus-within:border-emerald-400',
+                ].join(' ')}>
+                    <div className="flex items-center px-3 py-3.5 border-r border-stone-200 bg-stone-50/80">
+                        <IndianRupee size={15} className="text-stone-500" strokeWidth={2} />
+                    </div>
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        min="500"
+                        max="50000"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
+                        placeholder="e.g. 5000"
+                        className="flex-1 px-3 py-3.5 bg-transparent text-base font-sans text-emerald-950 placeholder:text-stone-300 focus:outline-none"
+                    />
+                    {Number(amount) >= 500 && (
+                        <span className="text-xs font-bold text-emerald-600 pr-3">
+                            ₹{Number(amount).toLocaleString('en-IN')}
+                        </span>
+                    )}
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1 pl-1">Minimum ₹500 · Maximum ₹50,000</p>
+            </div>
+
+            {/* Purpose */}
+            <div>
+                <label className="block text-sm font-semibold text-stone-600 font-sans mb-2">
+                    Purpose
+                </label>
+                <div className={[
+                    'relative flex items-center rounded-2xl border-2 bg-white/70 overflow-hidden transition-colors duration-150',
+                    purpose ? 'border-emerald-400' : 'border-stone-200 focus-within:border-emerald-400',
+                ].join(' ')}>
+                    <select
+                        value={purpose}
+                        onChange={e => setPurpose(e.target.value)}
+                        className="flex-1 px-3 py-3.5 bg-transparent text-sm font-sans text-emerald-950 focus:outline-none appearance-none cursor-pointer"
+                        aria-label="Loan purpose"
+                    >
+                        {CREDIT_PURPOSES.map(o => (
+                            <option key={o.value} value={o.value} disabled={!o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </select>
+                    <ChevronDown size={15} className="text-stone-400 mr-3 pointer-events-none shrink-0" />
+                </div>
+            </div>
+
+            {/* CTA */}
+            <motion.button
+                whileTap={isValid ? { scale: 0.97 } : {}}
+                disabled={!isValid}
+                onClick={() => isValid && setSubmitted(true)}
+                className={[
+                    'w-full flex items-center justify-center gap-2',
+                    'py-4 rounded-2xl font-bold text-base font-sans',
+                    'transition-all duration-200',
+                    isValid
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600'
+                        : 'bg-stone-100 text-stone-400 cursor-not-allowed',
+                ].join(' ')}
+            >
+                <Send size={16} strokeWidth={2} />
+                <span>Submit to Network</span>
+            </motion.button>
+        </motion.div>
+    )
+}
+
+// ─── Member Dual-Sided Marketplace ───────────────────────────────────────────
+function MemberMarketplace({ t, loans }) {
+    const [tab, setTab] = useState('invest')
+
+    return (
+        <motion.div
+            key="member-unlocked"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
             className="h-full"
         >
             <div className="h-full overflow-y-auto overscroll-contain px-4 pt-4 pb-32">
-                <div className="flex items-start justify-between mb-4">
-                    <div>
-                        <h1 className="section-title text-xl">Nearby NGO Lenders</h1>
-                        <p className="section-subtitle mt-0.5">Apply for credit from verified partner NGOs</p>
-                    </div>
-                    <PillTag color="trust" icon={ShieldCheck} label="Unlocked" pulse size="sm" />
-                </div>
 
+                {/* ── Mode Toggle — always visible at top ── */}
                 <motion.div
-                    initial={{ opacity: 0, y: -12 }}
+                    initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
                     className="mb-4"
                 >
-                    <GlassCard variant="trust" padding="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-emerald-600 flex-shrink-0" />
-                            <p className="text-xs font-semibold text-emerald-800">
-                                NGOs listed below are RBI-registered and active in your region. Tap an NGO to apply directly.
-                            </p>
-                        </div>
-                    </GlassCard>
+                    <MarketToggle mode={tab} onChange={setTab} />
                 </motion.div>
 
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="flex flex-col gap-4"
-                >
-                    {NGO_LENDERS.map(ngo => (
-                        <NgoLenderCard key={ngo.id} ngo={ngo} />
-                    ))}
-                </motion.div>
+                <AnimatePresence mode="wait">
+                    {tab === 'invest' ? (
+                        <motion.div
+                            key="invest-tab"
+                            initial={{ opacity: 0, x: 16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -16 }}
+                            transition={{ duration: 0.28 }}
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <h1 className="section-title text-xl">Fund a Member</h1>
+                                    <p className="section-subtitle mt-0.5">Earn returns by investing in verified community loans</p>
+                                </div>
+                                <PillTag color="trust" icon={TrendingUp} label="Invest Mode" size="sm" />
+                            </div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="mb-4"
+                            >
+                                <GlassCard variant="trust" padding="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles size={14} className="text-emerald-600 shrink-0" />
+                                        <p className="text-xs font-semibold text-emerald-800">
+                                            Each loan is co-backed by NGOs and high-trust Members. Fractional funding from ₹100.
+                                        </p>
+                                    </div>
+                                </GlassCard>
+                            </motion.div>
+
+                            <motion.div
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="flex flex-col gap-4"
+                            >
+                                {(loans.length ? loans : LOANS).map(loan => (
+                                    <LoanCard key={loan.id} loan={loan} t={t} />
+                                ))}
+                            </motion.div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="apply-tab"
+                            initial={{ opacity: 0, x: 16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -16 }}
+                            transition={{ duration: 0.28 }}
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <h1 className="section-title text-xl">Request Credit</h1>
+                                    <p className="section-subtitle mt-0.5">Get funded by your community network</p>
+                                </div>
+                                <PillTag color="amber" icon={ShieldCheck} label="Apply Mode" size="sm" />
+                            </div>
+
+                            <GlassCard variant="base" padding="p-5">
+                                <ApplyCreditPanel />
+                            </GlassCard>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </motion.div>
     )
@@ -776,7 +1057,7 @@ export default function P2PMarketplace() {
                 ) : isNgo ? (
                     <NgoMarketplace key="ngo" t={t} loans={mappedLoans} />
                 ) : (
-                    <BorrowerMarketplace key="borrower" t={t} />
+                    <MemberMarketplace key="member" t={t} loans={mappedLoans} />
                 )}
             </AnimatePresence>
         </div>
