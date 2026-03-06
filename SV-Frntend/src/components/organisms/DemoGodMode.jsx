@@ -96,7 +96,7 @@ export default function DemoGodMode() {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[90] flex flex-col items-end gap-2 select-none">
+    <div className="fixed top-16 right-4 z-[90] flex flex-col items-end gap-2 select-none">
 
       {/* ── Expanded panel ───────────────────────────────────────────────── */}
       <AnimatePresence>

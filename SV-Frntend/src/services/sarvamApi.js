@@ -29,9 +29,14 @@ export async function transcribeAudio(audioBlob, languageCode = 'kn-IN') {
     }
 
     const form = new FormData()
-    // Sarvam expects the file field; filename extension hints the codec
-    const ext = audioBlob.type.includes('wav') ? 'wav' : 'webm'
-    form.append('file', audioBlob, `recording.${ext}`)
+    // Sarvam rejects codec-suffixed MIME types (e.g. 'audio/webm;codecs=opus')
+    // Normalize to the base type it accepts.
+    const baseType = audioBlob.type.split(';')[0] || 'audio/webm'
+    const normalizedBlob = baseType !== audioBlob.type
+        ? new Blob([audioBlob], { type: baseType })
+        : audioBlob
+    const ext = baseType.includes('wav') ? 'wav' : 'webm'
+    form.append('file', normalizedBlob, `recording.${ext}`)
     form.append('language_code', languageCode)
 
     const res = await fetch(SARVAM_STT_URL, {
