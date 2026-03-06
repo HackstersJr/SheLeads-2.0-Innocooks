@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Send, ShieldAlert, ShieldCheck, Mic, MicOff, ChevronDown, Image, ShieldCheck as ShieldCheckIcon, Users } from 'lucide-react'
 import FirModal from '../components/FirModal'
 import PillTag from '../components/PillTag'
@@ -352,18 +353,35 @@ export default function LegalChat() {
                         onClick={isRecording ? stopRecording : startRecording}
                         disabled={isTranscribing}
                         className={[
-                            'w-11 h-11 flex-shrink-0 rounded-2xl',
+                            'relative w-11 h-11 flex-shrink-0 rounded-2xl',
                             'glass-card flex items-center justify-center',
                             'transition-all duration-200',
                             'disabled:opacity-40 disabled:cursor-not-allowed',
                             isRecording
-                                ? 'text-rose-500 ring-2 ring-rose-500 animate-pulse hover:text-rose-600'
+                                ? 'text-emerald-600 hover:text-emerald-700'
                                 : 'text-stone-400 hover:text-brand-600 hover:shadow-trust',
                         ].join(' ')}
                         aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
                         aria-pressed={isRecording}
                     >
-                        {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                        {/* Ripple bubbles — only while recording */}
+                        {isRecording && [0, 0.4, 0.8].map((delay, i) => (
+                            <motion.span
+                                key={i}
+                                className="absolute inset-0 rounded-2xl bg-emerald-400/30 pointer-events-none"
+                                style={{ zIndex: 0 }}
+                                animate={{ scale: [0.8, 1.55], opacity: [0.5, 0] }}
+                                transition={{ duration: 1.4, delay, repeat: Infinity, ease: 'easeOut' }}
+                            />
+                        ))}
+                        {/* Icon */}
+                        <motion.span
+                            className="relative z-10 flex items-center justify-center"
+                            animate={isRecording ? { scale: 1.15 } : { scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        >
+                            {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                        </motion.span>
                     </button>
 
                     {/* Text area */}
